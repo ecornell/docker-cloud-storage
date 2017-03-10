@@ -71,7 +71,9 @@ done
 
 trap '{ /bin/fusermount -u -z "${SECOND}"; }' INT TERM KILL QUIT EXIT
 
-mergerfs -f \${DEBUG_OPTIONS} ${OPTIONS} "${FIRST}" "${SECOND}"
+mergerfs -f \${DEBUG_OPTIONS} ${OPTIONS} "${FIRST}" "${SECOND}" &
+
+wait $!
 
 /bin/fusermount -u -z "${SECOND}"
 
