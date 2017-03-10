@@ -81,7 +81,7 @@ trap '{ /bin/fusermount -u -z "${MOUNT_LOCAL}"; }' INT TERM KILL QUIT EXIT
 
 wait $!
 
-/bin/fusermount -u -z "${MOUNT_LOCAL}"
+/bin/fusermount -u -z -q "${MOUNT_LOCAL}"
 
 EOF
     chmod +x ${RUN}; }

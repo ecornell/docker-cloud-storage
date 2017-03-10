@@ -75,7 +75,7 @@ mergerfs -f \${DEBUG_OPTIONS} ${OPTIONS} "${FIRST}" "${SECOND}" &
 
 wait $!
 
-/bin/fusermount -u -z "${SECOND}"
+/bin/fusermount -u -z -q "${SECOND}"
 
 EOF
     chmod +x ${RUN_PATH}; }
