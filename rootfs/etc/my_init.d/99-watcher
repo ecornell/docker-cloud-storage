@@ -44,7 +44,17 @@ if [ true ]; then
 
         cat << EOF > ${SERVICE_DIR}/run
 #!/usr/bin/env bash
-WATCHER_OPTIONS="${OPTIONS}" /scripts/watcher.sh "${DIR}" '${CMD}'
+
+function cleanup {
+  trap - HUP INT TERM QUIT EXIT
+  kill ${WATCHER_PID}
+  exit $1
+}
+
+trap cleanup HUP INT TERM QUIT EXIT
+WATCHER_OPTIONS="${OPTIONS}" /scripts/watcher.sh "${DIR}" '${CMD}' &
+WATCHER_PID=$!
+wait ${WATCHER_PID}
 EOF
         chmod +x ${SERVICE_DIR}/run
 

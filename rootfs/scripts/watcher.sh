@@ -2,7 +2,7 @@
 
 [[ "${DEBUG}" == "true" ]] && set -x
 
-SOURCE="$(dirname "${1}")"
+SOURCE="${1}"
 shift
 
 # Check if inotofywait is installed.
@@ -34,7 +34,7 @@ RUN() {
 
 function cleanup {
   trap - HUP INT TERM QUIT EXIT
-  kill -- -$$
+  kill $(pgrep -P $$)
   exit $1
 }
 
@@ -74,3 +74,4 @@ while read TFILE; do
 
 done &
 wait $!
+cleanup

@@ -12,8 +12,8 @@ MAX_THREADS="${MAX_THREADS:-1}"
 DEST="${1}" && shift
 FILES=("${@-}")
 
-[[ -z "${DEST-}" ]] && echo "Must provide destination as first argument." && exit 1
-[[ -z "${FILES-}" ]] && echo "Must provide at least file after destination. Exiting." && exit 1
+[[ -z "${DEST-}" ]] && logger "Must provide destination as first argument." && exit 1
+[[ -z "${FILES-}" ]] && logger "Must provide at least file after destination. Exiting." && exit 1
 
 # Configuration
 FILEBOT_ACTION="move"
@@ -26,7 +26,7 @@ FILEBOT_EXCLUDE_PATH="/data/.filebot/exclude.txt"
 FILEBOT_MOVIEFORMAT=$"Movies/{n} ({y})/{n} ({y}){' -  pt'+pi} - [{vf}, {vc}, {ac}{', '+source}]{'.'+lang}"
 FILEBOT_SERIESFORMAT=$"Shows/{n}/{episode.special ? 'Specials' : 'Season '+s.pad(2)}/{n} - {episode.special ? 'S00E'+special.pad(2) : s00e00} - {t.replaceAll(/[\`\´\‘\’\ʻ]/, /'/).replaceAll(/[!?.]+$/).replacePart(', Part \$1')} [{vf}, {vc}, {ac}{', '+source}]{'.'+lang}"
 
-#[[ ! -e ${DEST} ]] && echo "Destination does not exist (${DEST})." && exit 1
+#[[ ! -e ${DEST} ]] && logger "Destination does not exist (${DEST})." && exit 1
 
 TMP_DIR="/tmp"
 LOG_SUFFIX=".log"
@@ -53,6 +53,14 @@ CMD=$(cat <<-'SETVAR'
 SETVAR
 )
 
+function log(){
+
+    [[ "${DEBUG}" == "true" ]] && logger ${@}
+
+    return 0
+
+}
+
 function run(){
 
     local PID=$(sh -c 'echo $PPID');
@@ -63,9 +71,13 @@ function run(){
 
     touch "${LOG_PATH}"
 
-    echo "JOB (${PID}) STARTING"
+    log "JOB (${PID}) STARTING"
 
-    eval "${CMD} >> ${LOG_PATH} 2>&1 "
+    if [[ "${DEBUG}" == "true" ]]; then
+        eval "${CMD} 2>&1 | tee -a ${LOG_PATH}"
+    else
+        eval "${CMD} >> ${LOG_PATH} 2>&1 "
+    fi
 
     local STATUS=$?
 
@@ -73,7 +85,7 @@ function run(){
 
     [[ "${STATUS}" != "0" ]] && echo "${ARG}" > "${RESULT_PATH}" || touch "${RESULT_PATH}"
 
-    echo "JOB (${PID}) COMPLETE (${STATUS})"
+    log "JOB (${PID}) COMPLETE (${STATUS})"
 
     return "${STATUS}"
 
@@ -86,7 +98,7 @@ function complete(){
 
     if [[ "${STATUS}" != "0" ]]; then
 
-        echo -n "STATUS (${STATUS}) ADDING FILE (${RESULT}) BACK "
+        log -n "STATUS (${STATUS}) ADDING FILE (${RESULT}) BACK "
 
         FILES+=("${RESULT}")
 
@@ -101,7 +113,7 @@ function waitForAny(){
     local PIDS="${@}"
     local PID=
 
-    echo "WAITING FOR ANY JOBS (${PIDS})..."
+    log "WAITING FOR ANY JOBS (${PIDS})..."
 
     while [[ true ]]; do
 
@@ -124,19 +136,19 @@ function waitForAny(){
 
 while [[  -n "${FILES[@]-}" ]]; do
 
-    (( ${FAILED} > 0 )) && echo "SLEEPING on FAILED (${FAILED})..." && sleep "$(( 2 ** ${FAILED} ))"
+    (( ${FAILED} > 0 )) && log "SLEEPING on FAILED (${FAILED})..." && sleep "$(( 2 ** ${FAILED} ))"
 
     FILE="${FILES[0]}"
 
     FILES=("${FILES[@]:1}")
 
-    #[[ ! -e ${FILE} ]] && echo "Source does not exist (${SOURCE}). Skipping." && continue
+    #[[ ! -e ${FILE} ]] && log "Source does not exist (${SOURCE}). Skipping." && continue
 
     run "${FILE}" &
 
     JOB_ID=$!
 
-    [[ -z "${JOB_ID-}" ]] && echo "ERROR: NO JOB ID RETURNED" && exit 1
+    [[ -z "${JOB_ID-}" ]] && log "ERROR: NO JOB ID RETURNED" && exit 1
 
 	JOB_IDS+=("${JOB_ID}")
 
@@ -144,17 +156,17 @@ while [[  -n "${FILES[@]-}" ]]; do
 
         JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')"
 
-        echo "JOB COUNT (${JOB_COUNT}), FILE COUNT (${#FILES[@]}), WAITING..."
+        log "JOB COUNT (${JOB_COUNT}), FILE COUNT (${#FILES[@]}), WAITING..."
 
         waitForAny "${JOB_IDS[@]}"
 
-        echo "CHECKING FOR FINISHED JOBS..."
+        log "CHECKING FOR FINISHED JOBS..."
 
         #Go through all jobs and see if they completed
         JOB_IDS_COMPLETED=()
         for JOB_ID in "${JOB_IDS[@]}"; do
 
-             [[ -z "${JOB_ID-}" ]] && echo "ERROR: NO JOB ID RETURNED" && exit 1
+             [[ -z "${JOB_ID-}" ]] && log "ERROR: NO JOB ID RETURNED" && exit 1
 
             STATUS_PATH="${TMP_DIR}/${JOB_ID}${STATUS_SUFFIX}"
             RESULT_PATH="${TMP_DIR}/${JOB_ID}${RESULT_SUFFIX}"
@@ -164,45 +176,45 @@ while [[  -n "${FILES[@]-}" ]]; do
 
             LOG_PREFIX="JOB (${JOB_ID})"
 
-            echo "${LOG_PREFIX} PROCESSING..."
+            log "${LOG_PREFIX} PROCESSING..."
 
             read STATUS_CODE < "${STATUS_PATH}"
 
             read RESULT < "${RESULT_PATH}"
 
-            echo "${LOG_PREFIX} STATUS (${STATUS_CODE})"
+            log "${LOG_PREFIX} STATUS (${STATUS_CODE})"
 
-            echo "${LOG_PREFIX} RESULT (${RESULT})"
+            log "${LOG_PREFIX} RESULT (${RESULT})"
 
             if [[ "${STATUS_CODE}" != "0" ]]; then
 
                 ((FAILED++))
-                echo "${LOG_PREFIX} INCREMENTED FAILED (${FAILED})"
+                log "${LOG_PREFIX} INCREMENTED FAILED (${FAILED})"
 
             else
 
-                (( ${FAILED} > 0 )) && ((FAILED--)) && echo "${LOG_PREFIX} DECREMENTED FAILED (${FAILED})"
+                (( ${FAILED} > 0 )) && ((FAILED--)) && log "${LOG_PREFIX} DECREMENTED FAILED (${FAILED})"
 
             fi
 
-            echo "${LOG_PREFIX} RUNNING COMPLETE FUNCTION: "
+            log "${LOG_PREFIX} RUNNING COMPLETE FUNCTION: "
 
             complete "${STATUS_CODE}" "${RESULT}"
 
-            echo "${LOG_PREFIX} COMPLETE FUNCTION END";
+            log "${LOG_PREFIX} COMPLETE FUNCTION END";
 
-            rm "${STATUS_PATH}" && echo "${LOG_PREFIX} REMOVED (${STATUS_PATH})"
-            rm "${RESULT_PATH}" && echo "${LOG_PREFIX} REMOVED (${RESULT_PATH})"
-            rm "${LOG_PATH}" && echo "${LOG_PREFIX} REMOVED (${LOG_PATH})"
+            rm "${STATUS_PATH}" && log "${LOG_PREFIX} REMOVED (${STATUS_PATH})"
+            rm "${RESULT_PATH}" && log "${LOG_PREFIX} REMOVED (${RESULT_PATH})"
+            rm "${LOG_PATH}" && log "${LOG_PREFIX} REMOVED (${LOG_PATH})"
 
             ##save the index
             JOB_IDS_COMPLETED+=("${JOB_ID}")
 
-            echo "${LOG_PREFIX} ADDED TO JOB_IDS_COMPLETED (${JOB_IDS_COMPLETED[@]-})"
+            log "${LOG_PREFIX} ADDED TO JOB_IDS_COMPLETED (${JOB_IDS_COMPLETED[@]-})"
 
         done
 
-        echo "DONE CHECKING FOR FINISHED JOBS"
+        log "DONE CHECKING FOR FINISHED JOBS"
 
         #CLEAN JOB_IDS
         if (( "${#JOB_IDS_COMPLETED[@]}" > 0 )); then
@@ -233,7 +245,7 @@ while [[  -n "${FILES[@]-}" ]]; do
                 JOB_IDS=()
             fi
 
-            echo "JOBS: ${JOB_IDS[@]-}"
+            log "JOBS: ${JOB_IDS[@]-}"
 
         fi
 
