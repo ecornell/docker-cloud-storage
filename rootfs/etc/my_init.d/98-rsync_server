@@ -64,7 +64,9 @@ EOF
 
         [[ -e ${MOUNT_LOCAL} ]] && [[ ! -d ${MOUNT_LOCAL} ]] && echo "(${MOUNT_LOCAL}) already exists and is not a directory." && continue
 
-        [[ ! -d ${MOUNT_LOCAL} ]] && mkdir -p ${MOUNT_LOCAL} && chown ${RSYNC_SERVER_USER}:${RSYNC_SERVER_GROUP} -R ${MOUNT_LOCAL}
+        [[ ! -d ${MOUNT_LOCAL} ]] && exit 1
+
+        chown ${RSYNC_SERVER_USER}:${RSYNC_SERVER_GROUP} -R ${MOUNT_LOCAL}
 
         #[[ -z "$OPTIONS" ]] && OPTIONS="${DEFAULT_OPTIONS}"
 
