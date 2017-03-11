@@ -19,7 +19,7 @@ if [ true ]; then
         #########################
         MOUNT=$(eval "echo \$${PREFIX}_${NOUN}_$COUNT")
         MOUNT_NAME="\$${PREFIX}_${NOUN}_$COUNT"
-        #OPTIONS=$(eval "echo \$${PREFIX}_${NOUN}_${COUNT}_OPTIONS")
+        OPTIONS=$(eval "echo \$${PREFIX}_${NOUN}_${COUNT}_OPTIONS")
         #DEFAULT_OPTIONS=$(eval "echo \$${PREFIX}_DEFAULT_OPTIONS")
 
         #Increment count here so continue cmds later on don't cause infinite loop
@@ -44,7 +44,7 @@ if [ true ]; then
 
         cat << EOF > ${SERVICE_DIR}/run
 #!/usr/bin/env bash
-/scripts/watcher.sh "${DIR}" '${CMD}'
+WATCHER_OPTIONS="${OPTIONS}" /scripts/watcher.sh "${DIR}" '${CMD}'
 EOF
         chmod +x ${SERVICE_DIR}/run
 

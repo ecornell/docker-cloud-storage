@@ -4,6 +4,14 @@ SOURCE_DIR="${1}" && shift
 DEST_DIR="${2}" && shift
 FILES=("${@}")
 
+for FILE in "${FILES[@]}"; do
+
+
+
+done;
+
+
+
 #list recursive oldest first
 #find . -type f -exec ls -tr {} +
 
