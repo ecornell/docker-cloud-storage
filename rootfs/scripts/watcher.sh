@@ -2,7 +2,7 @@
 
 [[ "${DEBUG}" == "true" ]] && set -x
 
-SOURCE="${1}"
+SOURCE="$(dirname "${1}")"
 shift
 
 # Check if inotofywait is installed.
@@ -40,7 +40,7 @@ function cleanup {
 
 trap cleanup HUP INT TERM QUIT EXIT
 
-inotifywait --exclude '/\..+' -m -e create -e modify -e moved_to --format '%w%f' ${WATCHER_OPTIONS} "${SOURCE}" | \
+inotifywait  -m -e create -e modify -e moved_to --format '%w%f' ${WATCHER_OPTIONS} "${SOURCE}" | \
 while read TFILE; do
 
     [[ ! -e ${TFILE} ]] && continue
