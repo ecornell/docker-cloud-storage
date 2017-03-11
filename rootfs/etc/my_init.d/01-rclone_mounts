@@ -79,7 +79,7 @@ trap '{ /bin/fusermount -u -z -q "${MOUNT_LOCAL}"; }' INT TERM KILL QUIT EXIT
 
 /usr/local/bin/rclone mount "${MOUNT_REMOTE}" "${MOUNT_LOCAL}" --config "${RCLONE_CONF_PATH}" \${VERBOSE} ${OPTIONS} &
 
-wait $!
+wait \$!
 
 EOF
     chmod +x ${RUN}; }

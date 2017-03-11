@@ -72,4 +72,5 @@ while read TFILE; do
 
     RUNNING=0
 
-done
+done &
+wait $!

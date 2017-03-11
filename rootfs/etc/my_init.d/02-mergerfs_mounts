@@ -73,7 +73,7 @@ trap '{ /bin/fusermount -u -z -q "${SECOND}"; }' INT TERM KILL QUIT EXIT
 
 mergerfs -f \${DEBUG_OPTIONS} ${OPTIONS} "${FIRST}" "${SECOND}" &
 
-wait $!
+wait \$!
 
 EOF
     chmod +x ${RUN_PATH}; }
