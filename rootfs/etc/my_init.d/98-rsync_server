@@ -62,12 +62,6 @@ EOF
 
         [[ -z "${MOUNT_LOCAL}" ]] && echo "Missing local path for ${MOUNT_NAME}. Skipping." && continue
 
-        [[ -e ${MOUNT_LOCAL} ]] && [[ ! -d ${MOUNT_LOCAL} ]] && echo "(${MOUNT_LOCAL}) already exists and is not a directory." && continue
-
-        [[ ! -d ${MOUNT_LOCAL} ]] && exit 1
-
-        chown ${RSYNC_SERVER_USER}:${RSYNC_SERVER_GROUP} -R ${MOUNT_LOCAL}
-
         #[[ -z "$OPTIONS" ]] && OPTIONS="${DEFAULT_OPTIONS}"
 
         cat << EOF >> ${RSYNC_SERVER_CONF_PATH}
@@ -89,7 +83,14 @@ EOF
 
     cat << EOF > /etc/service/rsync_server/run
 #!/usr/bin/env bash
+[[ "${DEBUG,,}" == "true" ]] && set -x
+
+[[ ! -d ${MOUNT_LOCAL} ]] && exit 1
+
+chown ${RSYNC_SERVER_USER}:${RSYNC_SERVER_GROUP} -R ${MOUNT_LOCAL}
+
 exec /usr/bin/rsync --no-detach --daemon --config ${RSYNC_SERVER_CONF_PATH} -v
+
 EOF
     chmod +x /etc/service/rsync_server/run
 
