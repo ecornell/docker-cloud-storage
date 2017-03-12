@@ -53,14 +53,6 @@ CMD=$(cat <<-'SETVAR'
 SETVAR
 )
 
-function log(){
-
-    [[ "${DEBUG}" == "true" ]] && logger ${@}
-
-    return 0
-
-}
-
 function run(){
 
     local PID=$(sh -c 'echo $PPID');
@@ -71,10 +63,10 @@ function run(){
 
     touch "${LOG_PATH}"
 
-    log "JOB (${PID}) STARTING"
+    #log "JOB (${PID}) STARTING"
 
     if [[ "${DEBUG}" == "true" ]]; then
-        eval "${CMD} 2>&1 | tee -a ${LOG_PATH}"
+        eval "${CMD}"
     else
         eval "${CMD} >> ${LOG_PATH} 2>&1 "
     fi
@@ -83,9 +75,19 @@ function run(){
 
     echo "${STATUS}" > "${STATUS_PATH}"
 
-    [[ "${STATUS}" != "0" ]] && echo "${ARG}" > "${RESULT_PATH}" || touch "${RESULT_PATH}"
+    if [[ "${STATUS}" != "0" ]]; then
 
-    log "JOB (${PID}) COMPLETE (${STATUS})"
+        echo "${ARG}" > "${RESULT_PATH}"
+
+    else
+
+        touch "${RESULT_PATH}"
+
+    fi
+
+
+
+    #log "JOB (${PID}) COMPLETE (${STATUS})"
 
     return "${STATUS}"
 
@@ -142,13 +144,13 @@ while [[  -n "${FILES[@]-}" ]]; do
 
     FILES=("${FILES[@]:1}")
 
-    #[[ ! -e ${FILE} ]] && log "Source does not exist (${SOURCE}). Skipping." && continue
+    [[ ! -e ${FILE} ]] && continue
 
     run "${FILE}" &
 
     JOB_ID=$!
 
-    [[ -z "${JOB_ID-}" ]] && log "ERROR: NO JOB ID RETURNED" && exit 1
+    [[ -z "${JOB_ID-}" ]] && exit 1
 
 	JOB_IDS+=("${JOB_ID}")
 
@@ -156,17 +158,17 @@ while [[  -n "${FILES[@]-}" ]]; do
 
         JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')"
 
-        log "JOB COUNT (${JOB_COUNT}), FILE COUNT (${#FILES[@]}), WAITING..."
+        #log "JOB COUNT (${JOB_COUNT}), FILE COUNT (${#FILES[@]}), WAITING..."
 
         waitForAny "${JOB_IDS[@]}"
 
-        log "CHECKING FOR FINISHED JOBS..."
+        #log "CHECKING FOR FINISHED JOBS..."
 
         #Go through all jobs and see if they completed
         JOB_IDS_COMPLETED=()
         for JOB_ID in "${JOB_IDS[@]}"; do
 
-             [[ -z "${JOB_ID-}" ]] && log "ERROR: NO JOB ID RETURNED" && exit 1
+            [[ -z "${JOB_ID-}" ]] && exit 1
 
             STATUS_PATH="${TMP_DIR}/${JOB_ID}${STATUS_SUFFIX}"
             RESULT_PATH="${TMP_DIR}/${JOB_ID}${RESULT_SUFFIX}"
@@ -174,47 +176,50 @@ while [[  -n "${FILES[@]-}" ]]; do
 
             [[ ! -e ${STATUS_PATH} ]] && continue
 
-            LOG_PREFIX="JOB (${JOB_ID})"
+            #LOG_PREFIX="JOB (${JOB_ID})"
 
-            log "${LOG_PREFIX} PROCESSING..."
+            #log "${LOG_PREFIX} PROCESSING..."
 
             read STATUS_CODE < "${STATUS_PATH}"
 
             read RESULT < "${RESULT_PATH}"
 
-            log "${LOG_PREFIX} STATUS (${STATUS_CODE})"
+            #log "${LOG_PREFIX} STATUS (${STATUS_CODE})"
 
-            log "${LOG_PREFIX} RESULT (${RESULT})"
+            #log "${LOG_PREFIX} RESULT (${RESULT})"
 
             if [[ "${STATUS_CODE}" != "0" ]]; then
 
                 ((FAILED++))
-                log "${LOG_PREFIX} INCREMENTED FAILED (${FAILED})"
+
+                cat "${LOG_PATH}"
+
+                #log "${LOG_PREFIX} INCREMENTED FAILED (${FAILED})"
 
             else
 
-                (( ${FAILED} > 0 )) && ((FAILED--)) && log "${LOG_PREFIX} DECREMENTED FAILED (${FAILED})"
+                (( ${FAILED} > 0 )) && ((FAILED--))
 
             fi
 
-            log "${LOG_PREFIX} RUNNING COMPLETE FUNCTION: "
+            #log "${LOG_PREFIX} RUNNING COMPLETE FUNCTION: "
 
             complete "${STATUS_CODE}" "${RESULT}"
 
-            log "${LOG_PREFIX} COMPLETE FUNCTION END";
+            #log "${LOG_PREFIX} COMPLETE FUNCTION END";
 
-            rm "${STATUS_PATH}" && log "${LOG_PREFIX} REMOVED (${STATUS_PATH})"
-            rm "${RESULT_PATH}" && log "${LOG_PREFIX} REMOVED (${RESULT_PATH})"
-            rm "${LOG_PATH}" && log "${LOG_PREFIX} REMOVED (${LOG_PATH})"
+            rm "${STATUS_PATH}"
+            rm "${RESULT_PATH}"
+            rm "${LOG_PATH}"
 
             ##save the index
             JOB_IDS_COMPLETED+=("${JOB_ID}")
 
-            log "${LOG_PREFIX} ADDED TO JOB_IDS_COMPLETED (${JOB_IDS_COMPLETED[@]-})"
+            #log "${LOG_PREFIX} ADDED TO JOB_IDS_COMPLETED (${JOB_IDS_COMPLETED[@]-})"
 
         done
 
-        log "DONE CHECKING FOR FINISHED JOBS"
+        #log "DONE CHECKING FOR FINISHED JOBS"
 
         #CLEAN JOB_IDS
         if (( "${#JOB_IDS_COMPLETED[@]}" > 0 )); then
@@ -245,7 +250,7 @@ while [[  -n "${FILES[@]-}" ]]; do
                 JOB_IDS=()
             fi
 
-            log "JOBS: ${JOB_IDS[@]-}"
+            #log "JOBS: ${JOB_IDS[@]-}"
 
         fi
 
