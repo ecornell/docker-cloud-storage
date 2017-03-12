@@ -33,8 +33,6 @@ if [ true ]; then
 
         [[ -z "${CMD}" ]] && echo "Missing \$CMD. Skipping." && continue
 
-        [[ ! -e ${DIR} ]] && echo "(${DIR}) does not exist. Skipping." && continue
-
         #[[ -z "$OPTIONS" ]] && OPTIONS="${DEFAULT_OPTIONS}"
 
         SERVICE=${MOUNT_NAME:1}
@@ -44,6 +42,9 @@ if [ true ]; then
 
         cat << EOF > ${SERVICE_DIR}/run
 #!/usr/bin/env bash
+[[ "${DEBUG}" == "true" ]] && set -x
+
+[[ ! -e ${DIR} ]] && echo "(${DIR}) does not exist. Skipping." && exit 1
 
 function cleanup {
   trap - HUP INT TERM QUIT EXIT
@@ -52,9 +53,13 @@ function cleanup {
 }
 
 trap cleanup HUP INT TERM QUIT EXIT
+
 WATCHER_OPTIONS="${OPTIONS}" /scripts/watcher.sh "${DIR}" '${CMD}' &
+
 WATCHER_PID=$!
+
 wait ${WATCHER_PID}
+
 EOF
         chmod +x ${SERVICE_DIR}/run
 
