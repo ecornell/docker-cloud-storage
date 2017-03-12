@@ -60,7 +60,7 @@ while [[ true ]]; do
 
     [[ ! -e ${RUN_PATH} ]] && { cat << EOF > ${RUN_PATH}
 #!/usr/bin/env bash
-[[ "${DEBUG}" == "true" ]] && set -x && DEBUG_OPTIONS="-d "
+[[ "${DEBUG}" == "true" ]] && set -x #&& DEBUG_OPTIONS="-d "
 
 IFS=':' read -a DIRS <<< "${FIRST}"
 
