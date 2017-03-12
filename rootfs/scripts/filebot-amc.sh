@@ -100,7 +100,7 @@ function complete(){
 
     if [[ "${STATUS}" != "0" ]]; then
 
-        log -n "STATUS (${STATUS}) ADDING FILE (${RESULT}) BACK "
+        #log -n "STATUS (${STATUS}) ADDING FILE (${RESULT}) BACK "
 
         FILES+=("${RESULT}")
 
@@ -115,7 +115,7 @@ function waitForAny(){
     local PIDS="${@}"
     local PID=
 
-    log "WAITING FOR ANY JOBS (${PIDS})..."
+    #log "WAITING FOR ANY JOBS (${PIDS})..."
 
     while [[ true ]]; do
 
@@ -138,7 +138,7 @@ function waitForAny(){
 
 while [[  -n "${FILES[@]-}" ]]; do
 
-    (( ${FAILED} > 0 )) && log "SLEEPING on FAILED (${FAILED})..." && sleep "$(( 2 ** ${FAILED} ))"
+    (( ${FAILED} > 0 )) && sleep "$(( 2 ** ${FAILED} ))"
 
     FILE="${FILES[0]}"
 
