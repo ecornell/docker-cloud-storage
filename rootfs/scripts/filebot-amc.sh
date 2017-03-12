@@ -17,12 +17,11 @@ FILES=("${@-}")
 
 # Configuration
 FILEBOT_ACTION="move"
-FIlEBOT_UNSORTED="y"
+FIlEBOT_UNSORTED="n"
 FILEBOT_CONFLICT="override"
 FILEBOT_CLEAN="y"
 FILEBOT_MUSIC="n"
 FILEBOT_SUBTITLES=""
-FILEBOT_EXCLUDE_PATH=""
 FILEBOT_MOVIEFORMAT=$"Movies/{n} ({y})/{n} ({y}){' -  pt'+pi} - [{vf}, {vc}, {ac}{', '+source}]{'.'+lang}"
 FILEBOT_SERIESFORMAT=$"Shows/{n}/{episode.special ? 'Specials' : 'Season '+s.pad(2)}/{n} - {episode.special ? 'S00E'+special.pad(2) : s00e00} - {t.replaceAll(/[\`\´\‘\’\ʻ]/, /'/).replaceAll(/[!?.]+$/).replacePart(', Part \$1')} [{vf}, {vc}, {ac}{', '+source}]{'.'+lang}"
 
@@ -42,8 +41,7 @@ CMD=$(cat <<-'SETVAR'
         -no-xattr \
         --log-lock no \
         --conflict "${FILEBOT_CONFLICT}" \
-        --def   excludeList="${FILEBOT_EXCLUDE_PATH}" \
-                unsorted="${FIlEBOT_UNSORTED}" \
+        --def   unsorted="${FIlEBOT_UNSORTED}" \
                 clean="${FILEBOT_CLEAN}" \
                 music="${FILEBOT_MUSIC}" \
                 subtitles="${FILEBOT_SUBTITLES}" \
@@ -62,18 +60,23 @@ function run(){
 
     touch "${LOG_PATH}"
 
-    #log "JOB (${PID}) STARTING"
+    local LOG_PREFIX="(${ARG}) JOB (${PID})"
+
+    echo "${LOG_PREFIX} STARTING"
+
+    echo "${LOG_PREFIX} RUNNING COMMAND (${CMD})"
 
     if [[ "${DEBUG}" == "true" ]]; then
-        eval "${CMD}"
+        eval "${CMD}" | while read line; do echo "${LOG_PREFIX} OUTPUT: $line"; done
+        local STATUS=${PIPESTATUS[0]}
     else
         eval "${CMD} >> ${LOG_PATH} 2>&1 "
+        local STATUS=$?
     fi
-
-    local STATUS=$?
 
     echo "${STATUS}" > "${STATUS_PATH}"
 
+    ##If the job didn't complete return result of file so we can add it back to the queue
     if [[ "${STATUS}" != "0" ]]; then
 
         echo "${ARG}" > "${RESULT_PATH}"
@@ -84,7 +87,7 @@ function run(){
 
     fi
 
-    #log "JOB (${PID}) COMPLETE (${STATUS})"
+    echo "${LOG_PREFIX} COMPLETE STATUS (${STATUS})"
 
     return "${STATUS}"
 
@@ -97,7 +100,7 @@ function complete(){
 
     if [[ "${STATUS}" != "0" ]]; then
 
-        #log -n "STATUS (${STATUS}) ADDING FILE (${RESULT}) BACK "
+        echo "ADDING FILE (${RESULT}) BACK TO QUEUE"
 
         FILES+=("${RESULT}")
 
@@ -112,9 +115,9 @@ function waitForAny(){
     local PIDS="${@}"
     local PID=
 
-    #log "WAITING FOR ANY JOBS (${PIDS})..."
+    echo "WAITING FOR ANY JOBS (${PIDS})..."
 
-    while [[ true ]]; do
+    while [[ -n "${PIDS}" ]]; do
 
         for PID in ${PIDS}; do
 
@@ -135,19 +138,23 @@ function waitForAny(){
 
 while [[  -n "${FILES[@]-}" ]]; do
 
-    (( ${FAILED} > 0 )) && sleep "$(( 2 ** ${FAILED} ))"
+    echo "LOOPING THROUGH(${#FILES[@]})..."
+
+    (( ${FAILED} > 0 )) && echo "PRIOR FAILED JOBS (${FAILED}) THROTTLING FOR $(( 2 ** ${FAILED} ))" && sleep "$(( 2 ** ${FAILED} ))"
 
     FILE="${FILES[0]}"
 
     FILES=("${FILES[@]:1}")
 
-    [[ ! -e ${FILE} ]] && continue
+    echo "(${FILE}) PROCESSING"
+
+    [[ ! -e ${FILE} ]] && echo "(${FILE}) DOES NOT EXIST. SKIPPING." && continue
 
     run "${FILE}" &
 
     JOB_ID=$!
 
-    [[ -z "${JOB_ID-}" ]] && exit 1
+    [[ -z "${JOB_ID-}" ]] && echo "ERROR: COULD NOT DETERMINE JOB_ID" && exit 1
 
 	JOB_IDS+=("${JOB_ID}")
 
