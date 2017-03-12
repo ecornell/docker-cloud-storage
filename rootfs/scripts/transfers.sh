@@ -40,7 +40,7 @@ function TRANSFER_FILE(){
     [[ "${TYPE}" == "copy" ]] && local RCLONE_CMD="copyto"
     [[ "${TYPE}" == "move" ]] && local RCLONE_CMD="moveto"
 
-    rclone --config /etc/rclone/rclone.conf "${RCLONE_CMD}" "${FILE}" "${DEST_DIR}${RELATIVE_PATH}"
+    rclone --config /etc/rclone/rclone.conf "${RCLONE_CMD}" --stats 60s -v "${FILE}" "${DEST_DIR}${RELATIVE_PATH}"
 
     local EXIT_STATUS=$?
 

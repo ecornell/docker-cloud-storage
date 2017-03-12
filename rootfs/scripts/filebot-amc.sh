@@ -21,8 +21,8 @@ FIlEBOT_UNSORTED="y"
 FILEBOT_CONFLICT="override"
 FILEBOT_CLEAN="y"
 FILEBOT_MUSIC="n"
-FILEBOT_SUBTITLES="en"
-FILEBOT_EXCLUDE_PATH="/data/.filebot/exclude.txt"
+FILEBOT_SUBTITLES=""
+FILEBOT_EXCLUDE_PATH=""
 FILEBOT_MOVIEFORMAT=$"Movies/{n} ({y})/{n} ({y}){' -  pt'+pi} - [{vf}, {vc}, {ac}{', '+source}]{'.'+lang}"
 FILEBOT_SERIESFORMAT=$"Shows/{n}/{episode.special ? 'Specials' : 'Season '+s.pad(2)}/{n} - {episode.special ? 'S00E'+special.pad(2) : s00e00} - {t.replaceAll(/[\`\´\‘\’\ʻ]/, /'/).replaceAll(/[!?.]+$/).replacePart(', Part \$1')} [{vf}, {vc}, {ac}{', '+source}]{'.'+lang}"
 
@@ -39,7 +39,6 @@ JOB_IDS=()
 CMD=$(cat <<-'SETVAR'
  filebot -script fn:amc --output "${DEST}" "${ARG}" \
         --action "${FILEBOT_ACTION}" \
-        -non-strict \
         -no-xattr \
         --log-lock no \
         --conflict "${FILEBOT_CONFLICT}" \
@@ -84,8 +83,6 @@ function run(){
         touch "${RESULT_PATH}"
 
     fi
-
-
 
     #log "JOB (${PID}) COMPLETE (${STATUS})"
 

@@ -40,7 +40,7 @@ function cleanup {
 
 trap cleanup HUP INT TERM QUIT EXIT
 
-inotifywait  -m -e create -e modify -e moved_to --format '%w%f' ${WATCHER_OPTIONS} "${SOURCE}" | \
+inotifywait  -m -e create -e moved_to --format '%w%f' ${WATCHER_OPTIONS} "${SOURCE}" | \
 while read TFILE; do
 
     [[ ! -e ${TFILE} ]] && continue
