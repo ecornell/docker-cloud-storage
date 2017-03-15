@@ -75,7 +75,7 @@ fi;
 
 echo "RCLONE: Mounting ${MOUNT_REMOTE} to ${MOUNT_LOCAL} with options (${OPTIONS})"
 
-trap '{ /bin/fusermount -u -z -q "${MOUNT_LOCAL}"; }' INT TERM KILL QUIT EXIT
+trap '{ /bin/fusermount -u -z -q "${MOUNT_LOCAL}"; exit \$1; }' INT TERM KILL QUIT EXIT
 
 /usr/local/bin/rclone mount "${MOUNT_REMOTE}" "${MOUNT_LOCAL}" --config "${RCLONE_CONF_PATH}" \${VERBOSE} ${OPTIONS} &
 

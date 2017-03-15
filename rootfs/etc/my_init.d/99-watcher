@@ -46,19 +46,7 @@ if [ true ]; then
 
 [[ ! -e ${DIR} ]] && echo "(${DIR}) does not exist. Skipping." && exit 1
 
-function cleanup {
-  trap - HUP INT TERM QUIT EXIT
-  kill \${WATCHER_PID}
-  exit \$1
-}
-
-trap cleanup HUP INT TERM QUIT EXIT
-
-WATCHER_OPTIONS="${OPTIONS}" /scripts/watcher.sh "${DIR}" '${CMD}' &
-
-WATCHER_PID=\$!
-
-wait \${WATCHER_PID}
+WATCHER_OPTIONS="${OPTIONS}" /scripts/watcher.sh "${DIR}" '${CMD}'
 
 EOF
         chmod +x ${SERVICE_DIR}/run
