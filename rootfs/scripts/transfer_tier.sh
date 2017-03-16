@@ -3,8 +3,8 @@
 
 set -u -o pipefail
 
-DEST_DIR="${1}"
-SOURCE_DIR="${2}"
+SOURCE_DIR="${1}"
+DEST_DIR="${2}"
 FREE_PERCENT_CONCERN=50
 LOCK_FILE="/tmp/migrate_files.lock"
 MAX_TRANSFERS=10
@@ -28,7 +28,7 @@ function CHECK_SPACE(){
 
 }
 
-LOCKED_IS && exit 0
+LOCK_IS && exit 0
 
 LOCK_SET
 
@@ -40,32 +40,22 @@ while ! CHECK_SPACE; do
 
     IFS=$'\n' FILES=("$(find ${SOURCE_DIR} -type f -exec ls -ctr {} +)");
 
-    echo "Found (${#FILES[@]}) to move..."
+    for FILE_PATH in "${FILES[@]}"; do
 
-    [[ -z "${FILES[@]-}" ]] && break;
+        [[ -n "${IN_USE["${FILE_PATH}"]}" ]] && FILE_PATH= && continue
 
-    for INDEX in "${!FILES[@]}"; do
-
-        FILE="${FILES["${INDEX}"]}"
-
-        [[ "${IN_USE["${FILE}"]}" == "1" ]] && unset FILES["${INDEX}"]
+        break;
 
     done
 
-    FILES="${FILES[@]}"
+    [[ -z "${FILE_PATH-}" ]] && echo "Found (0) to move. Exiting." && break;
 
-    [[ -z "${FILES[@]-}" ]] && break;
-
-    FILE_PATH="${FILES[0]}"
-
-    FILE_NAME="$(basename "${FILE_PATH}")"
-
-    RELATIVE_PATH="${FILE_PATH#"${SOURCE_DIR}"}" RELATIVE_PATH="${RELATIVE_PATH%"${FILE_NAME}"}"
+    echo "Moving (${FILE_PATH})..."
 
     #CHECK TO SEE IF FILE IS IN USE
-    fuser -s "${FILE_PATH}" && IN_USE["${FILE_PATH}"]=1 && break
+    fuser -s "${FILE_PATH}" && IN_USE["${FILE_PATH}"]=1 && continue
 
-    TRANSFER_FILE "move" "${FILE_PATH}" "${DEST_DIR}${RELATIVE_PATH}" || { echo "ERROR TRANSFERING (${FILE_PATH}). EXITING." && exit 1 }
+    RCLONE_TRANSFER_FILES_RELATIVE "move" "${SOURCE_DIR}" "${DEST_DIR}" "${FILE_PATH}" || { echo "ERROR TRANSFERING (${FILE_PATH}). EXITING." && exit 1; }
 
     find "$(dirname "${FILE_PATH}")" -type d -empty -delete
 

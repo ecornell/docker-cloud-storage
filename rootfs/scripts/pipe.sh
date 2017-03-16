@@ -26,7 +26,7 @@ trap "QUIT" TERM INT
 
 function SHOW_HELP(){
 
-    echo "help"
+    echo "NOT RUNNING PIPE CORRECTLY. YOU NEED HELP."
 
 }
 
@@ -43,8 +43,8 @@ function RUN(){
 
     local PID=$(sh -c 'echo $PPID');
     local QITEM="${1}"
-    local STATUS_PATH="${TMP_DIR}/${PID}${STATUS_SUFFIX}"
-    local LOG_PATH="${TMP_DIR}/${PID}${LOG_SUFFIX}"
+    local STATUS_PATH="${PIPE_TMP_DIR}/${PID}${STATUS_SUFFIX}"
+    local LOG_PATH="${PIPE_TMP_DIR}/${PID}${LOG_SUFFIX}"
 
     touch "${LOG_PATH}"
 
@@ -54,9 +54,11 @@ function RUN(){
 
     [[ -e "${STATUS_PATH}" ]] && rm "${STATUS_PATH}" &> /dev/null
 
-    LOG "RUNNING COMMAND (${CMD})"
+    local CMD_ACTUAL="${CMD/"{}"/"\"${QITEM-}\""}"
 
-    /bin/bash -c "${CMD/"{}"/"${QITEM-}"}" &> "${LOG_PATH}"
+    LOG "RUNNING COMMAND (${CMD_ACTUAL})"
+
+    /bin/bash -c "${CMD_ACTUAL}" &> "${LOG_PATH}"
 
     local STATUS=$?
 
@@ -72,41 +74,11 @@ function QUIT(){
 
     [[ "${DEBUG}" == "true" ]] && set -x
 
-    ps auxwwf
-
-    declare -a
-
     PIDS_STOP
 
-    UNLOCK
+    LOCK_UNSET
 
     exit ${1-}
-
-}
-
-function WAITFORANY(){
-
-    set +x
-
-    local PID=
-
-    echo "WAITING FOR A JOB TO COMPLETE (${PIDS[@]-})..."
-
-    while [[ -n "${PIDS[@]-}" ]]; do
-
-        for PID in "${PIDS[@]-}"; do
-
-            ps -p ${PID} > /dev/null || break 2
-
-        done
-
-        sleep 1
-
-    done;
-
-    [[ "${DEBUG}" == "true" ]] && set -x
-
-    return 0
 
 }
 
@@ -159,8 +131,8 @@ function PIDS_CLEAN(){
     local QITEM="${1}"
     local PID="${2}"
 
-    STATUS_PATH="${TMP_DIR}/${PID}${STATUS_SUFFIX}"
-    LOG_PATH="${TMP_DIR}/${PID}${LOG_SUFFIX}"
+    STATUS_PATH="${PIPE_TMP_DIR}/${PID}${STATUS_SUFFIX}"
+    LOG_PATH="${PIPE_TMP_DIR}/${PID}${LOG_SUFFIX}"
 
     rm "${STATUS_PATH}"
     rm "${LOG_PATH}"
@@ -186,8 +158,8 @@ function PIDS_CHECK(){
 
         [[ -z "${PID-}" ]] && LOG "ERROR: UNKNOWN." && exit 1
 
-        STATUS_PATH="${TMP_DIR}/${PID}${STATUS_SUFFIX}"
-        LOG_PATH="${TMP_DIR}/${PID}${LOG_SUFFIX}"
+        STATUS_PATH="${PIPE_TMP_DIR}/${PID}${STATUS_SUFFIX}"
+        LOG_PATH="${PIPE_TMP_DIR}/${PID}${LOG_SUFFIX}"
 
         #If the job hasn't outputted a status, it probably hasn't completed
         if [[ ! -e ${STATUS_PATH} ]]; then
@@ -216,11 +188,15 @@ function PIDS_CHECK(){
 
         LOG "STATUS (${JOB_STATUS})"
 
-        if [[ "${JOB_STATUS}" != "0" ]] || [[ "${DEBUG}" == "true" ]]; then
+        if [[ "${PIPE_OUTPUT_CMD_LOG}" == "true" ]] || [[ "${JOB_STATUS}" != "0" ]] || [[ "${DEBUG}" == "true" ]]; then
 
-            LOG "LOG OUTPUT: $(cat "${LOG_PATH}")"
+            #LOG "LOG OUTPUT: $(cat "${LOG_PATH}")"
 
-            LOG "LOG STOP"
+            while read LINE; do
+                LOG "LOG OUTPUT: ${LINE}"
+            done <<< "$(<"${LOG_PATH}")"
+
+            #LOG "LOG STOP"
 
         fi
 
@@ -244,14 +220,14 @@ function PIDS_CHECK(){
 
                 LOG "INCREMENTED FAILED COUNT. ITEM (${FAILED_COUNT-}) TOTAL (${FAILED-})"
 
-                if (( "${FAILED_COUNT}" < "${MAX_FAILED_PER_QITEM}" )); then
+                if (( "${FAILED_COUNT}" < "${PIPE_MAX_FAILED_PER_QITEM}" )); then
 
                     LOG "ADDING BACK TO QUEUE"
 
                     QUEUE_PUSH
                 else
 
-                    LOG "EXCEEDED MAX FAILURES (${MAX_FAILED_PER_QITEM}). NOT RETURNING TO QUEUE."
+                    LOG "EXCEEDED MAX FAILURES (${PIPE_MAX_FAILED_PER_QITEM}). NOT RETURNING TO QUEUE."
 
                     QUEUE_PUSH_FAIL
 
@@ -295,7 +271,7 @@ while getopts hvt: opt; do
             ;;
         v)  DEBUG=TRUE
             ;;
-        t)  MAX_THREADS="$OPTARG"
+        t)  PIPE_MAX_THREADS="$OPTARG"
             ;;
         *)  SHOW_HELP >&2
             exit 1
@@ -305,19 +281,20 @@ done
 
 shift "$((OPTIND-1))" # Shift off the options and optional --.
 
-QUEUE_IFS=${QUEUE_IFS:-$'\n\t'}
+PIPE_TMP_DIR="${PIPE_TMP_DIR:-/tmp}"
+PIPE_OUTPUT_CMD_LOG="${PIPE_OUTPUT_CMD_LOG:-true}"
+PIPE_QUEUE_IFS=${PIPE_QUEUE_IFS:-$'\n\t'}
+PIPE_MAX_FAILED=10
+PIPE_MAX_FAILED_PER_QITEM=2
+PIPE_MAX_THREADS="${PIPE_MAX_THREADS:-1}"
+
 CMD="${@}"
 CMD_MD5="$(printf '%s' "${CMD[@]}" | md5sum | awk '{print $1}')"
-MAX_THREADS="${MAX_THREADS:-1}"
-MAX_FAILED=10
-MAX_FAILED_PER_QITEM=2
-TMP_DIR="/tmp"
-QUEUE_FILE="${TMP_DIR}/${CMD_MD5}.queue"
-QUEUE_FILE_ORIG="${TMP_DIR}/${CMD_MD5}.queue"
-QUEUE_FILE_FAILED="${TMP_DIR}/${CMD_MD5}.failed"
-LOCK_FILE="${TMP_DIR}/${CMD_MD5}.lock"
+QUEUE_FILE="${PIPE_TMP_DIR}/${CMD_MD5}.queue"
+QUEUE_FILE_ORIG="${PIPE_TMP_DIR}/${CMD_MD5}.queue"
+QUEUE_FILE_FAILED="${PIPE_TMP_DIR}/${CMD_MD5}.failed"
+LOCK_FILE="${PIPE_TMP_DIR}/${CMD_MD5}.lock"
 LOG_SUFFIX=".log"
-#RESULT_SUFFIX=".result"
 STATUS_SUFFIX=".status"
 FAILED=0
 
@@ -328,25 +305,19 @@ unset PIDS && declare -A PIDS
 
 [[ -z "${CMD-}" ]] && SHOW_HELP && exit 1
 
-while IFS=$"$QUEUE_IFS" read -r -t 0.5 QITEM; do
-    echo "${QITEM-}"
+while IFS=$"${PIPE_QUEUE_IFS}" read -r -t 0.5 QITEM; do
     [[ -z "${QITEM-}" ]] && continue
     QUEUE_NEW+=("${QITEM}")
 done && unset QITEM
 
-if LOCK_IS; then
+#Append potential ondisk queue with incoming items
+[[ -n "${QUEUE_NEW[@]-}" ]] && { QITEM=("${QUEUE_NEW[@]}") && QUEUE_PUSH_MANY && unset QITEM || exit 1; }
 
-    (( "${#QUEUE_NEW[@]}" > 0 )) && QUEUE="${QUEUE_NEW[@]}" && QUEUE_APPEND
-
-    echo "${CMD_MD5}" && exit 0
-
-fi
+#If already locked, exit
+LOCK_IS && echo "${CMD_MD5}" && exit 0
 
 #LOCK SO WE CAN RUN
 LOCK_SET || exit 1
-
-#Append potential ondisk queue with incoming items
-[[ -n "${QUEUE_NEW[@]-}" ]] && { QITEM=("${QUEUE_NEW[@]}") && QUEUE_PUSH_MANY && unset QITEM || exit 1; }
 
 unset QUEUE_NEW
 
@@ -356,6 +327,14 @@ while QUEUE_SHIFT; do
     LOG_PREFIX=""
 
     LOG "QUEUED ITEMS WAITING FOR PROCESSING ($((${#QUEUE[@]} + 1)))..."
+
+    if (( ${FAILED} > 0 )); then
+
+        (( "${FAILED}" >= "${PIPE_MAX_FAILED}" )) && { LOG "EXCEEDED MAX TOTAL FAILED (${PIPE_MAX_FAILED}). EXITING."; QUIT 1; }
+
+        echo "FAILED COUNT (${FAILED}), THROTTLING FOR $(( 2 ** ${FAILED} )) SECONDS" && sleep "$(( 2 ** ${FAILED} ))"
+
+    fi
 
     #recognize QUEUE_SHIFT gives us QITEM
     QITEM="${QITEM}"
@@ -380,7 +359,7 @@ while QUEUE_SHIFT; do
 	LOG_PREFIX=""
 
     #run through a waiting pattern if there are no more jobs or we are at our max threads
-    while JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')" && (( "${JOB_COUNT}" >= "${MAX_THREADS}" )) || ( QUEUE_READ && [[  -z "${QUEUE[@]-}" ]] && [[ -n "${PIDS[@]-}" ]] ); do
+    while JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')" && (( "${JOB_COUNT}" >= "${PIPE_MAX_THREADS}" )) || ( QUEUE_READ && [[  -z "${QUEUE[@]-}" ]] && [[ -n "${PIDS[@]-}" ]] ); do
 
         [[ -n "${PIDS[@]-}" ]] && PID_COUNT="${#PIDS[@]}"
 
@@ -391,14 +370,6 @@ while QUEUE_SHIFT; do
         PIDS_CHECK
 
     done
-
-    if (( ${FAILED} > 0 )); then
-
-        (( "${FAILED}" >= "${MAX_FAILED}" )) && { LOG "EXCEEDED MAX TOTAL FAILED (${MAX_FAILED}). EXITING."; QUIT 1; }
-
-        #echo "FAILED COUNT (${FAILED}), THROTTLING FOR $(( 2 ** ${FAILED} )) SECONDS" && sleep "$(( 2 ** ${FAILED} ))"
-
-    fi
 
 done
 

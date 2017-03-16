@@ -65,8 +65,10 @@ while [[ true ]]; do
 IFS=':' read -a DIRS <<< "${FIRST}"
 
 for DIR in "\${DIRS[@]}"; do
-  [[ ! -e \${DIR} ]] && echo "Source dir does not exist (\${DIR}). Exiting." && exit 1
+  [[ ! -e \${DIR} ]] && { mkdir -p "\${DIR}" || { echo "Unable to create directory (\${DIR}). Exiting." && exit 1; }; }
+  [[ ! -d \${DIR} ]] && echo "(\${DIR}) Not directory. Exiting." && exit 1
 done
+
 
 [[ ! -e ${SECOND} ]] && mkdir -p ${SECOND}
 

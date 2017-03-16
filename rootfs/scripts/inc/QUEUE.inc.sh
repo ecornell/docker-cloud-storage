@@ -9,7 +9,7 @@ function QUEUE_SHIFT(){
 
     QUEUE_READ || return 1
 
-    [[ -z "${QUEUE-}" ]] && return 1
+    [[ -z "${QUEUE[@]-}" ]] && return 1
 
     QITEM="${QUEUE[0]}"
 
@@ -83,13 +83,13 @@ function QUEUE_READ(){
 
     QUEUE=()
 
-    local QITEM=""
+    local QITEM
 
     [[ ! -f ${QUEUE_FILE} ]] && return 0
 
     while IFS=$'\n' read QITEM; do
-        QUEUE+=("${QITEM}")
-    done < ${QUEUE_FILE}
+        [[ -n "${QITEM-}" ]] && QUEUE+=("${QITEM}")
+    done < "${QUEUE_FILE}"
 
     return 0
 
@@ -98,13 +98,11 @@ function QUEUE_READ(){
 ##PRIVATE
 function QUEUE_SAVE(){
 
-    IFS=$'\n' printf "%s\n" "${QUEUE[@]-}" > "${QUEUE_FILE}" && return 0 || return 1
-
-}
-
-function QUEUE_APPEND(){
-
-    printf "%s\n" "${QUEUE[@]}" >> "${QUEUE_FILE}" && return 0 || return 1
+    if [[ -z "${QUEUE[@]-}" ]]; then
+        echo "" > "${QUEUE_FILE}" && return 0 || return 1
+    else
+        printf "%s\n" "${QUEUE[@]-}" > "${QUEUE_FILE}" && return 0 || return 1
+    fi
 
 }
 

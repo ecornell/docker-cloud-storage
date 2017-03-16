@@ -31,7 +31,7 @@ while read FILE; do
     CMD="$(echo "${*}")"
     echo "WATCHER EVENT (${FILE}) RUNNING (${CMD})..."
 
-    RESULT="$(/bin/bash -c "${CMD}")"
+    RESULT="$(/bin/bash -c "${CMD//'${FILE}'/"${FILE-}"}")"
 
     echo "WATCHER EVENT (${FILE}) RESULT (${RESULT})"
 

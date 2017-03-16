@@ -5,16 +5,20 @@ set -u -o pipefail
 
 export HOME="/data"
 
-DEST="${1}"
-SOURCE="${2}"
+DEST="${1-}"
+SOURCE="${2-}"
 
-[[ -z "${DEST-}" ]] && logger "Must provide destination as first argument. Exiting." && exit 1
-[[ -z "${SOURCE-}" ]] && logger "Must provide source. Exiting." && exit 1
+[[ -z "${DEST-}" ]] && logger "Must provide destination (\$1). Exiting." && exit 1
+[[ -z "${SOURCE-}" ]] && logger "Must provide source (\$2). Exiting." && exit 1
 [[ ! -e ${DEST} ]] && logger "Destination does not exist (${DEST}). Exiting." && exit 1
+
+FILES="$(find "${SOURCE}" -type f -regex '.*\.\(mkv\|mp4\|avi\|wmv\|flv\|webm\|mov\)')"
+
+[[ -z "${FILES-}" ]] && exit 0
 
 # Configuration
 FILEBOT_ACTION="move"
-FIlEBOT_UNSORTED="n"
+FIlEBOT_UNSORTED="y"
 FILEBOT_CONFLICT="override"
 FILEBOT_CLEAN="y"
 FILEBOT_MOVIEFORMAT=$"Movies/{n} ({y})/{n} ({y}){' -  pt'+pi} - [{vf}, {vc}, {ac}{', '+source}]{'.'+lang}"
@@ -28,6 +32,4 @@ filebot -no-xattr -script fn:amc "${SOURCE}" \
     --def   unsorted="${FIlEBOT_UNSORTED}" \
             clean="${FILEBOT_CLEAN}" \
             movieFormat="${FILEBOT_MOVIEFORMAT}" \
-            seriesFormat="${FILEBOT_SERIESFORMAT}" || echo "Problem running filebot. Exiting." && exit 1
-
-find "$(dirname "${SOURCE}")" -type d -empty -delete
+            seriesFormat="${FILEBOT_SERIESFORMAT}" && find "$(dirname "${SOURCE}")" -type d -empty -delete

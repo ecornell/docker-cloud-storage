@@ -3,13 +3,10 @@
 
 set -u -o pipefail
 
+SOURCE_DIR="${1}" && shift
 DEST_DIR="${1}" && shift
-FILES=("${@}")
+FILE_PATHS=("${@}")
 
-for FILE in "${FILES[@]}"; do
+. "$(dirname "$0")/inc/RCLONE.inc.sh"
 
-    [[ ! -f "${FILE}" ]] && continue
-
-    RCLONE_TRANSFER_FILE "copy" "${FILE}" "${DEST_DIR}" || { echo "ERROR TRANSFERRING (${FILE}). EXITING." && exit 1 }
-
-done;
+RCLONE_TRANSFER_FILES_RELATIVE "copy" "${SOURCE_DIR}" "${DEST_DIR}" "${FILE_PATHS[@]}"
