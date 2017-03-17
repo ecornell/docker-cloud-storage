@@ -6,6 +6,8 @@ function LOCK_SET(){
 
     echo $$ > "${LOCK_FILE}" || return 1
 
+    echo "LOCK SET AT (${LOCK_FILE}) FOR ($$)"
+
     return 0
 
 }
@@ -16,23 +18,27 @@ function LOCK_UNSET(){
 
     rm "${LOCK_FILE}" || return 1
 
+    echo "LOCK UNSET AT (${LOCK_FILE})"
+
     return 0
 
 }
 
 function LOCK_IS(){
 
-    [[ -z "${LOCK_FILE-}" ]] && return 1
+    echo "LOCK CHECK..."
 
-    [[ ! -f ${LOCK_FILE} ]] && return 1
+    [[ -z "${LOCK_FILE-}" ]] && echo "LOCK NOT FOUND." && return 1
+
+    [[ ! -f ${LOCK_FILE} ]] && echo "LOCK NOT FOUND." && return 1
 
     local PID="$(cat "${LOCK_FILE}")"
 
-    [[ -z "${PID}" ]] && return 1
+    [[ -z "${PID}" ]] && echo "LOCK NOT FOUND." && return 1
 
     #LOCKED and PID IS RUNNING
-    local LOCKED_CMD="$(ps --noheaders -p ${PID} -o cmd)" && [[ "${0}" == "${LOCKED_CMD}" ]] && return 0
+    ps --noheaders -p ${PID} &> /dev/null && echo "LOCK WAS FOUND." && return 0
 
-    LOCK_UNSET && return 1
+    LOCK_UNSET && echo "LOCK NOT FOUND." && return 1
 
 }
