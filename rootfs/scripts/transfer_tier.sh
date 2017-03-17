@@ -5,7 +5,7 @@ set -u -o pipefail
 
 SOURCE_DIR="${1}"
 DEST_DIR="${2}"
-FREE_PERCENT_CONCERN=50
+TIER_PERCENT_CONCERN="${TIER_PERCENT_CONCERN:50}"
 LOCK_FILE="/tmp/migrate_files.lock"
 MAX_TRANSFERS=10
 
@@ -24,7 +24,7 @@ function CHECK_SPACE(){
 
     echo "${FREE_MBS} MB AVAILABLE / ${TOTAL_MBS} MB TOTAL (${FREE_PERCENT}% FREE)"
 
-    (( ${FREE_PERCENT} >= ${FREE_PERCENT_CONCERN} )) && echo "Free % (${FREE_PERCENT}) above concern % (${FREE_PERCENT_CONCERN})." && return 0 || echo "Free % (${FREE_PERCENT}) more than concern percent (${FREE_PERCENT_CONCERN})." && return 1
+    { (( ${FREE_PERCENT} >= ${TIER_PERCENT_CONCERN} )) && echo "Free % (${FREE_PERCENT}) above concern % (${TIER_PERCENT_CONCERN})." && return 0; } || { echo "Free % (${FREE_PERCENT}) below concern % (${TIER_PERCENT_CONCERN})." && return 1; }
 
 }
 

@@ -116,7 +116,7 @@ function PIDS_STOP(){
 
         PIDS_CLEAN "${QITEM}" "${PID}"
 
-        unset PIDS["${QITEM}"]
+        unset PIDS["${QITEM}"] || exit 1
 
         LOG "ADDING BACK TO QUEUE"
 
@@ -176,7 +176,7 @@ function PIDS_CHECK(){
 
             PIDS_CLEAN "${QITEM}" "${PID}"
 
-            unset 'PIDS["${QITEM}"]'
+            unset 'PIDS[${QITEM}]' || exit 1
 
             continue
 
@@ -250,7 +250,7 @@ function PIDS_CHECK(){
         PIDS_CLEAN "${QITEM}" "${PID}"
 
         ##save the index
-        unset 'PIDS["${QITEM}"]'
+        unset 'PIDS[${QITEM}]' || exit 1
 
         LOG "REMOVED FROM ACTIVE JOBS LIST"
 
