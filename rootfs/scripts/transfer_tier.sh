@@ -38,7 +38,7 @@ while ! CHECK_SPACE; do
 
     echo "Working to free up space..."
 
-    IFS=$'\n' FILES=("$(find ${SOURCE_DIR} -type f -exec ls -ctr {} +)");
+    mapfile -t FILES <<< "$(find ${SOURCE_DIR} -type f -exec ls -ctr {} +)"
 
     for FILE_PATH in "${FILES[@]-}"; do
 
