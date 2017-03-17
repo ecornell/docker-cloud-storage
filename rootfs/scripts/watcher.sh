@@ -30,7 +30,7 @@ while read FILE; do
     ORIG_CMD="${*}"
     CMD="$(echo "${*}")"
     CMD_ACTUAL="${CMD//'${FILE}'/"\"${FILE-}\""}"
-    echo "WATCHER EVENT (${FILE}) RUNNING (${CMD})..."
+    echo "WATCHER EVENT (${FILE}) RUNNING (${CMD_ACTUAL})..."
 
     /bin/bash -c "${CMD_ACTUAL}" &
 
