@@ -14,7 +14,7 @@ fi
 
 function cleanup {
   trap - HUP INT TERM QUIT EXIT
-  kill $(pgrep -P $$)
+  kill $(pgrep -P $$) &> /dev/null
   exit $1
 }
 
