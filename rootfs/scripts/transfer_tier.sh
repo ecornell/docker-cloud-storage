@@ -53,11 +53,11 @@ while ! CHECK_SPACE; do
     echo "Moving (${FILE_PATH})..."
 
     #CHECK TO SEE IF FILE IS IN USE
-    fuser -s "${FILE_PATH}" && IN_USE["${FILE_PATH}"]=1 && continue
+    fuser -s "${FILE_PATH}" && { IN_USE["${FILE_PATH}"]=1 && continue; } || exit 1
 
     RCLONE_TRANSFER_FILES_RELATIVE "move" "${SOURCE_DIR}" "${DEST_DIR}" "${FILE_PATH}" || { echo "ERROR TRANSFERING (${FILE_PATH}). EXITING." && exit 1; }
 
-    find "$(dirname "${FILE_PATH}")" -type d -empty -delete
+    find "$(dirname "${FILE_PATH}")" -type d -empty -delete -print
 
 done
 

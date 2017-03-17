@@ -176,7 +176,7 @@ function PIDS_CHECK(){
 
             PIDS_CLEAN "${QITEM}" "${PID}"
 
-            unset PIDS["${QITEM}"]
+            unset 'PIDS["${QITEM}"]'
 
             continue
 
@@ -250,7 +250,7 @@ function PIDS_CHECK(){
         PIDS_CLEAN "${QITEM}" "${PID}"
 
         ##save the index
-        unset PIDS["${QITEM}"]
+        unset 'PIDS["${QITEM}"]'
 
         LOG "REMOVED FROM ACTIVE JOBS LIST"
 
