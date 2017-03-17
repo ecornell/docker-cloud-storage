@@ -5,7 +5,8 @@ set -u -o pipefail
 
 SOURCE_DIR="${1}"
 DEST_DIR="${2}"
-TIER_PERCENT_CONCERN="${TIER_PERCENT_CONCERN:50}"
+TIER_PERCENT_CONCERN="${TIER_PERCENT_CONCERN:-50}"
+LOCK_FILE="/tmp/transfer_tier.lock"
 
 . "$(dirname "$0")/inc/LOCK.inc.sh"
 . "$(dirname "$0")/inc/RCLONE.inc.sh"
@@ -30,17 +31,20 @@ LOCK_IS && exit 0
 
 LOCK_SET
 
-unset IN_USE && declare -A IN_USE
+unset IN_USE
+declare -A IN_USE
 
 while ! CHECK_SPACE; do
 
     echo "Working to free up space..."
 
-    mapfile -t FILES <<< "$(find "${SOURCE}" -type f -printf "%A+ %p\n" | sort | cut -d' ' -f2-)"
+    mapfile -t FILES <<< "$(find "${SOURCE_DIR}" -type f -printf "%T+ %p\n" | grep -v "/data/.Local/Incoming/.tmp" | sort | cut -d' ' -f2-)"
 
     for FILE_PATH in "${FILES[@]-}"; do
 
-        [[ -n "${IN_USE["${FILE_PATH}"]-}" ]] && FILE_PATH= && continue
+        [[ -z "${FILE_PATH}" ]] && FILE_PATH= && continue
+
+        [[ -n "${IN_USE[@]-}" ]] && [[ -n "${IN_USE["${FILE_PATH}"]-}" ]] && FILE_PATH= && continue
 
         break;
 
