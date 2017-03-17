@@ -58,7 +58,11 @@ function RUN(){
 
     LOG "RUNNING COMMAND (${CMD_ACTUAL})"
 
-    /bin/bash -c "${CMD_ACTUAL}" &> "${LOG_PATH}"
+    local LOCAL
+
+    /bin/bash -c "${CMD_ACTUAL}" 2>&1 | tee "${LOG_PATH}" | while read LINE; do
+        [[ "${PIPE_OUTPUT_CMD_LOG-}" == "true" ]] && LOG "CMD OUTPUT: ${LINE}"
+    done
 
     local STATUS=$?
 
@@ -188,7 +192,7 @@ function PIDS_CHECK(){
 
         LOG "STATUS (${JOB_STATUS})"
 
-        if [[ "${PIPE_OUTPUT_CMD_LOG}" == "true" ]] || [[ "${JOB_STATUS}" != "0" ]] || [[ "${DEBUG}" == "true" ]]; then
+        if [[ "${PIPE_OUTPUT_CMD_LOG}" != "true" ]] && [[ "${JOB_STATUS}" != "0" ]] || [[ "${DEBUG}" == "true" ]]; then
 
             #LOG "LOG OUTPUT: $(cat "${LOG_PATH}")"
 
