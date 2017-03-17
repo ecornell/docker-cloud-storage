@@ -6,8 +6,6 @@ set -u -o pipefail
 SOURCE_DIR="${1}"
 DEST_DIR="${2}"
 TIER_PERCENT_CONCERN="${TIER_PERCENT_CONCERN:50}"
-LOCK_FILE="/tmp/migrate_files.lock"
-MAX_TRANSFERS=10
 
 . "$(dirname "$0")/inc/LOCK.inc.sh"
 . "$(dirname "$0")/inc/RCLONE.inc.sh"

@@ -41,7 +41,7 @@ function RCLONE_TRANSFER_FILE(){
 
     [[ "${TYPE}" == "move" ]] && local RCLONE_CMD="move" && echo -n "Attempting to MOVE file (${SOURCE})..."
 
-    rclone --config /etc/rclone/rclone.conf "${RCLONE_CMD}" --stats 60s "${SOURCE_DIR}" "${DEST_DIR}" --include "/$(printf "%q" "${FILENAME}")"
+    rclone --config /etc/rclone/rclone.conf "${RCLONE_CMD}" "${SOURCE_DIR}" "${DEST_DIR}" --include "/$(printf "%q" "${FILENAME}")" --stats 60s -v
 
     local EXIT_STATUS=$?
 
