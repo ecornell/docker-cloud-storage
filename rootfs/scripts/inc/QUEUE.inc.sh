@@ -51,12 +51,12 @@ function QUEUE_PUSH_MANY(){
 
     [[ -z "${QITEM[@]-}" ]] && return 1
 
-    declare -p | grep -q -e '^declare -[Aa] QITEM=' &> /dev/null || return 1
+    declare -p | grep -e '^declare -[Aa] QITEM=' &> /dev/null || return 1
 
     QUEUE_READ
 
     if [[ -n "${QUEUE[@]-}" ]]; then
-        QUEUE=("${QUEUE[@]-}" "${QITEM[@]}")
+        QUEUE=("${QUEUE[@]}" "${QITEM[@]}")
     else
         QUEUE=("${QITEM[@]}")
     fi
