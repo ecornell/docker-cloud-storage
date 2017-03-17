@@ -51,7 +51,7 @@ function QUEUE_PUSH_MANY(){
 
     [[ -z "${QITEM[@]-}" ]] && return 1
 
-    declare -p | grep -q '^declare -[Aa] QITEM' || return 1
+    declare -p | grep -q '^declare -[Aa] QITEM=' &> /dev/null || return 1
 
     QUEUE_READ
 

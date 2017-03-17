@@ -32,4 +32,8 @@ filebot -no-xattr -script fn:amc "${SOURCE}" \
     --def   unsorted="${FIlEBOT_UNSORTED}" \
             clean="${FILEBOT_CLEAN}" \
             movieFormat="${FILEBOT_MOVIEFORMAT}" \
-            seriesFormat="${FILEBOT_SERIESFORMAT}" && find "$(dirname "${SOURCE}")" -type d -empty -delete
+            seriesFormat="${FILEBOT_SERIESFORMAT}" || exit 1
+
+find "${SOURCE}" -type d -empty -delete &> /dev/null
+
+exit 0
