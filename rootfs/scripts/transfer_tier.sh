@@ -30,13 +30,13 @@ LOCK_IS && exit 0
 
 LOCK_SET
 
-declare -A IN_USE
+unset IN_USE && declare -A IN_USE
 
 while ! CHECK_SPACE; do
 
     echo "Working to free up space..."
 
-    mapfile -t FILES <<< "$(find ${SOURCE_DIR} -type f -exec ls -ctr {} +)"
+    mapfile -t FILES <<< "$(find "${SOURCE}" -type f -printf "%A+ %p\n" | sort | cut -d' ' -f2-)"
 
     for FILE_PATH in "${FILES[@]-}"; do
 
@@ -51,7 +51,7 @@ while ! CHECK_SPACE; do
     echo "Moving (${FILE_PATH})..."
 
     #CHECK TO SEE IF FILE IS IN USE
-    fuser -s "${FILE_PATH}" && { IN_USE["${FILE_PATH}"]=1 && continue; } || exit 1
+    fuser -s "${FILE_PATH}" && IN_USE["${FILE_PATH}"]=1 && continue
 
     RCLONE_TRANSFER_FILES_RELATIVE "move" "${SOURCE_DIR}" "${DEST_DIR}" "${FILE_PATH}" || { echo "ERROR TRANSFERING (${FILE_PATH}). EXITING." && exit 1; }
 
