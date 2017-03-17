@@ -40,9 +40,9 @@ while ! CHECK_SPACE; do
 
     IFS=$'\n' FILES=("$(find ${SOURCE_DIR} -type f -exec ls -ctr {} +)");
 
-    for FILE_PATH in "${FILES[@]}"; do
+    for FILE_PATH in "${FILES[@]-}"; do
 
-        [[ -n "${IN_USE["${FILE_PATH}"]}" ]] && FILE_PATH= && continue
+        [[ -n "${IN_USE["${FILE_PATH}"]-}" ]] && FILE_PATH= && continue
 
         break;
 
