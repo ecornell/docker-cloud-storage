@@ -10,7 +10,8 @@
 ###ENVS###
 #UNION_USER="${UNION_MOUNT_USER:-nobody}"
 #UNION_GROUP="${UNION_MOUNT_GROUP:-nogroup}"
-UNION_DEFAULT_OPTIONS="${UNION_MOUNT_DEFAULT_OPTIONS:-atomic_o_trunc,auto_cache,kernel_cache,big_writes,splice_move,splice_read,splice_write,allow_other,use_ino,max_readahead=200M,moveonenospc=true,category.action=all,category.create=ff,category.search=ff,func.getattr=newest}"
+UNION_DEFAULT_OPTIONS="${UNION_MOUNT_DEFAULT_OPTIONS:-direct_io,use_ino,max_readahead=200M,moveonenospc=true,atomic_o_trunc,big_writes,splice_move,splice_read,splice_write,allow_other,category.action=all,category.create=ff,category.search=ff,func.getattr=newest}"
+#UNION_DEFAULT_OPTIONS="${UNION_MOUNT_DEFAULT_OPTIONS:-direct_io,use_ino,max_readahead=200M,moveonenospc=true,atomic_o_trunc,auto_cache,kernel_cache,big_writes,splice_move,splice_read,splice_write,allow_other,category.action=all,category.create=ff,category.search=ff,func.getattr=newest}"
 #UNION_DEFAULT_OPTIONS="${UNION_MOUNT_DEFAULT_OPTIONS:-atomic_o_trunc,auto_cache,kernel_cache,big_writes,splice_move,splice_read,splice_write,allow_other,use_ino,moveonenospc=true,category.action=all,category.create=ff,category.search=ff,func.getattr=newest}"
 
 ###VARS###
