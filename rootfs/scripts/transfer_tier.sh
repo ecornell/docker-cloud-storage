@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-[[ "${DEBUG}" == "true" ]] && set -x
+[[ "${DEBUG-}" == "true" ]] && set -x
 
 set -u -o pipefail
 
 SOURCE_DIR="${1}"
 DEST_DIR="${2}"
-TIER_PERCENT_CONCERN="${TIER_PERCENT_CONCERN:-50}"
 LOCK_FILE="/tmp/transfer_tier.lock"
 
+[[ ! -e ${SOURCE_DIR} ]] && echo "SOURCE_DIR (${SOURCE_DIR}) DOES NOT EXIST. EXITING." && exit 1
+
 . "$(dirname "$0")/inc/LOCK.inc.sh"
+
 . "$(dirname "$0")/inc/RCLONE.inc.sh"
 
 function CHECK_SPACE(){
@@ -21,9 +23,20 @@ function CHECK_SPACE(){
 
     FREE_PERCENT=$((200*${FREE_MBS}/${TOTAL_MBS} % 2 + 100*${FREE_MBS}/${TOTAL_MBS}))
 
-    echo "${FREE_MBS} MB AVAILABLE / ${TOTAL_MBS} MB TOTAL (${FREE_PERCENT}% FREE)"
+    #echo "${FREE_MBS} MB AVAILABLE / ${TOTAL_MBS} MB TOTAL (${FREE_PERCENT}% FREE)"
 
-    { (( ${FREE_PERCENT} >= ${TIER_PERCENT_CONCERN} )) && echo "Free % (${FREE_PERCENT}) above concern % (${TIER_PERCENT_CONCERN})." && return 0; } || { echo "Free % (${FREE_PERCENT}) below concern % (${TIER_PERCENT_CONCERN})." && return 1; }
+    if (( FREE_PERCENT < STAGE_4_PERCENT )); then
+        MAX_JOBS="${STAGE_4_JOBS}"
+    elif (( FREE_PERCENT < STAGE_3_PERCENT )); then
+        MAX_JOBS="${STAGE_3_JOBS}"
+    elif (( FREE_PERCENT < STAGE_2_PERCENT )); then
+        MAX_JOBS="${STAGE_2_JOBS}"
+    else
+        MAX_JOBS="${STAGE_1_JOBS}"
+    fi
+
+    { (( ${FREE_PERCENT} > ${STAGE_1_PERCENT} )) && echo "Free % (${FREE_PERCENT}) above concern % (${STAGE_1_PERCENT})." && return 0; } \
+        || { echo "Free % (${FREE_PERCENT}) below concern % (${STAGE_1_PERCENT})." && return 1; }
 
 }
 
@@ -31,8 +44,17 @@ LOCK_IS && exit 0
 
 LOCK_SET
 
-unset IN_USE
-declare -A IN_USE
+STAGE_1_PERCENT=50
+STAGE_1_JOBS=1
+
+STAGE_2_PERCENT=40
+STAGE_2_JOBS=5
+
+STAGE_3_PERCENT=20
+STAGE_3_JOBS=20
+
+STAGE_4_PERCENT=10
+STAGE_4_JOBS=40
 
 while ! CHECK_SPACE; do
 
@@ -40,27 +62,32 @@ while ! CHECK_SPACE; do
 
     mapfile -t FILES <<< "$(find "${SOURCE_DIR}" -type f -printf "%T+ %p\n" | grep -v "/data/.Local/Incoming/.tmp" | sort | cut -d' ' -f2-)"
 
+    [[ -z "${FILES[@]-}" ]] && echo "No files found. Exiting." && break;
+
     for FILE_PATH in "${FILES[@]-}"; do
 
-        [[ -z "${FILE_PATH}" ]] && FILE_PATH= && continue
+        [[ -z "${FILE_PATH}" ]] && continue
 
-        [[ -n "${IN_USE[@]-}" ]] && [[ -n "${IN_USE["${FILE_PATH}"]-}" ]] && FILE_PATH= && continue
+        while ! CHECK_SPACE && JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')" && (( "${JOB_COUNT}" >= "${MAX_JOBS}" )); do
 
-        break;
+            sleep 5
+
+        done
+
+        #if we are below concern percent stop loop
+        CHECK_SPACE && break;
+
+        fuser -s "${FILE_PATH}" && continue
+
+        echo "Moving (${FILE_PATH})..."
+
+        RCLONE_TRANSFER_FILES_RELATIVE "move" "${SOURCE_DIR}" "${DEST_DIR}" "${FILE_PATH}" && find "$(dirname "${FILE_PATH}")" -type d -empty -delete -print &
 
     done
 
-    [[ -z "${FILE_PATH-}" ]] && echo "Found (0) to move. Exiting." && break;
-
-    echo "Moving (${FILE_PATH})..."
-
-    #CHECK TO SEE IF FILE IS IN USE
-    fuser -s "${FILE_PATH}" && IN_USE["${FILE_PATH}"]=1 && continue
-
-    RCLONE_TRANSFER_FILES_RELATIVE "move" "${SOURCE_DIR}" "${DEST_DIR}" "${FILE_PATH}" || { echo "ERROR TRANSFERING (${FILE_PATH}). EXITING." && exit 1; }
-
-    find "$(dirname "${FILE_PATH}")" -type d -empty -delete -print
-
 done
+
+#Make sure all background jobs are done
+wait
 
 LOCK_UNSET

@@ -79,17 +79,53 @@ function QUEUE_PUSH_FAIL(){
 
 }
 
+function QUEUE_APPEND(){
+
+    [[ -z "${QITEM-}" ]] && return 1
+
+    printf "%s\n" "${QITEM}" >> "${QUEUE_APPEND_FILE}" && return 0 || return 1
+
+}
+
+function QUEUE_APPEND_MANY(){
+
+    declare -p | grep -e '^declare -[Aa] QITEM=' &> /dev/null || return 1
+
+    [[ -z "${QITEM[@]-}" ]] && return 1
+
+    printf "%s\n" "${QITEM[@]}" >> "${QUEUE_APPEND_FILE}" && return 0 || return 1
+
+}
+
 function QUEUE_READ(){
 
     QUEUE=()
 
     local QITEM
 
-    [[ ! -f ${QUEUE_FILE} ]] && return 0
+    if [[ -f ${QUEUE_FILE} ]]; then
 
-    while IFS=$'\n' read QITEM; do
-        [[ -n "${QITEM-}" ]] && QUEUE+=("${QITEM}")
-    done < "${QUEUE_FILE}"
+        while IFS=$'\n' read QITEM; do
+            [[ -n "${QITEM-}" ]] && QUEUE+=("${QITEM}")
+        done < "${QUEUE_FILE}"
+
+    fi
+
+    if [[ -n "${QUEUE_APPEND_FILE}" ]] && [[ -f ${QUEUE_APPEND_FILE} ]]; then
+
+        QITEM=
+
+        mv "${QUEUE_APPEND_FILE}" "${QUEUE_APPEND_FILE}.tmp"
+
+        while IFS=$'\n' read QITEM; do
+         [[ -n "${QITEM-}" ]] && QUEUE+=("${QITEM}")
+        done < "${QUEUE_APPEND_FILE}.tmp"
+
+        rm "${QUEUE_APPEND_FILE}.tmp"
+
+        QUEUE_SAVE
+
+    fi
 
     return 0
 
@@ -99,12 +135,13 @@ function QUEUE_READ(){
 function QUEUE_SAVE(){
 
     if [[ -z "${QUEUE[@]-}" ]]; then
-        echo "" > "${QUEUE_FILE}" && return 0 || return 1
+        echo -n "" > "${QUEUE_FILE}" && return 0 || return 1
     else
         printf "%s\n" "${QUEUE[@]-}" > "${QUEUE_FILE}" && return 0 || return 1
     fi
 
 }
+
 
 function QUEUE_REMOVE_FILE(){
 
@@ -119,6 +156,8 @@ function QUEUE_REMOVE_FILE(){
     fi
 
     [[ -f "${QUEUE_FILE}" ]] && rm "${QUEUE_FILE}"
+
+    [[ -f "${QUEUE_APPEND_FILE}" ]] && rm "${QUEUE_APPEND_FILE}"
 
     return 0
 

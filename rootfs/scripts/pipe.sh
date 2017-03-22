@@ -3,25 +3,29 @@
 
 set -u -o pipefail
 
-trap "QUIT" TERM INT
+trap "QUIT" TERM
+
+trap "QUIT_FORCE" INT
+
+INCLUDE_PATH="/scripts/inc"
 
 #PROVIDES:
 # LOCK_SET, LOCK_UNSET, LOCK_IS
 #USES:
 # LOCK_FILE
-. "$(dirname "$0")/inc/LOCK.inc.sh"
+. "${INCLUDE_PATH}/LOCK.inc.sh"
 
 #PROVIDES:
 # QUEUE_SHIFT, QUEUE_UNSHIFT, QUEUE_PUSH, QUEUE_PUSH_MANY, QUEUE_PUSH_FAIL, QUEUE_READ
 #USES:
 # QUEUE, QITEM
-. "$(dirname "$0")/inc/QUEUE.inc.sh"
+. "${INCLUDE_PATH}/QUEUE.inc.sh"
 
 #PROVIDES:
 # WAITFORANY
 #USES:
 # PIDS
-. "$(dirname "$0")/inc/WAIT.inc.sh"
+. "${INCLUDE_PATH}/WAIT.inc.sh"
 
 
 function SHOW_HELP(){
@@ -39,46 +43,103 @@ function LOG(){
 
 function RUN(){
 
-    set +e
-
-    local PID=$(sh -c 'echo $PPID');
     local QITEM="${1}"
-    local STATUS_PATH="${PIPE_TMP_DIR}/${PID}${STATUS_SUFFIX}"
-    local LOG_PATH="${PIPE_TMP_DIR}/${PID}${LOG_SUFFIX}"
-
-    touch "${LOG_PATH}"
-
-    LOG_PREFIX="${LOG_PREFIX}JOB (${PID}) "
-
-    LOG "STARTING"
-
-    [[ -e "${STATUS_PATH}" ]] && rm "${STATUS_PATH}" &> /dev/null
-
     local CMD_ACTUAL="${CMD/"{}"/"\"${QITEM-}\""}"
 
     LOG "RUNNING COMMAND (${CMD_ACTUAL})"
 
-    local LOCAL
+    (
 
-    /bin/bash -c "${CMD_ACTUAL}" 2>&1 | tee "${LOG_PATH}" | while read LINE; do
-        [[ "${PIPE_OUTPUT_CMD_LOG-}" == "true" ]] && LOG "CMD OUTPUT: ${LINE}"
-    done
+        trap : INT TERM
+        PID=$(sh -c 'echo $PPID');
+        STATUS_PATH="${PIPE_TMP_DIR}/${PID}${STATUS_SUFFIX}"
+        LOG_PATH="${PIPE_TMP_DIR}/${PID}${LOG_SUFFIX}"
+        LOG_PREFIX="${LOG_PREFIX}JOB (${PID}) "
 
-    local STATUS=$?
+        LOG "STARTING"
 
-    echo "${STATUS}" > "${STATUS_PATH}"
+        [[ -e "${STATUS_PATH}" ]] && rm "${STATUS_PATH}" &> /dev/null
 
-    LOG "COMPLETE. STATUS (${STATUS})"
+        touch "${LOG_PATH}"
 
-    return "${STATUS}"
+        eval "trap 'exit 129' INT TERM; ${CMD_ACTUAL}" | tee "${LOG_PATH}" | while read LINE; do
+            [[ "${PIPE_OUTPUT_CMD_LOG-}" == "true" ]] && LOG "CMD OUTPUT: ${LINE}"
+        done
+
+        STATUS="${PIPESTATUS[0]}";
+
+        echo "${STATUS}" > "${STATUS_PATH}"
+
+        LOG "COMPLETE. STATUS (${STATUS})."
+
+    ) &
+
+     #save pid of background job
+    PID=$!
+
+    #fail if for some reason the pid couldn't be realized
+    [[ -z "${PID-}" ]] && LOG "ERROR: COULD NOT DETERMINE PID" && exit 1
+
+    #add pid to associative array with QITEM as key
+	PIDS["${QITEM}"]="${PID}"
+
+    #eval "${CMD_ACTUAL}" 2>&1 | tee "${LOG_PATH}" | while read LINE; do
+    #    [[ "${PIPE_OUTPUT_CMD_LOG-}" == "true" ]] && LOG "CMD OUTPUT: ${LINE}"
+    #done
+
+    return 0
 
 }
+
+function RUN_KILL(){
+
+    local PID="${1}"
+    local CHILDREN="$(ps --ppid "${PID}" -o pid --noheaders)"
+
+    [[ -n "${CHILDREN-}" ]] && for CHILD in ${CHILDREN}; do
+
+        ps -p ${CHILD} &> /dev/null && RUN_KILL ${CHILD}
+
+    done
+
+    kill -9 ${PID} &> /dev/null
+
+    return 0
+
+}
+
+function RUN_WAITFORANY(){
+
+    set +x
+
+    local PID=
+
+    echo "WAITING FOR A JOB TO COMPLETE (${PIDS[@]-})..."
+
+    while [[ -n "${PIDS[@]-}" ]]; do
+
+        for PID in "${PIDS[@]-}"; do
+
+            ps -p ${PID} > /dev/null || break 2
+
+        done
+
+        sleep 1
+
+    done;
+
+    [[ "${DEBUG-}" == "true" ]] && set -x
+
+    return 0
+
+}
+
 
 function QUIT(){
 
     [[ "${DEBUG}" == "true" ]] && set -x
 
-    PIDS_STOP
+    RUN_STOP_ALL
 
     LOCK_UNSET
 
@@ -86,41 +147,43 @@ function QUIT(){
 
 }
 
-function PIDS_STOP(){
+function QUIT_FORCE(){
 
-    PIDS_CHECK
+    [[ "${DEBUG}" == "true" ]] && set -x
+
+    RUN_STOP_ALL "true"
+
+    LOCK_UNSET
+
+    exit ${1-}
+
+}
+
+function RUN_STOP_ALL(){
+
+    local FORCE="${1:-false}"
+
+    LOG_PREFIX=""
 
     LOG "STOPPING JOBS"
 
-    for QITEM in "${!PIDS[@]}"; do
+    while [[ -n "${PIDS[@]-}" ]]; do
 
-        LOG_PREFIX=""
+        RUN_CHECK
 
-        [[ -z "${QITEM-}" ]] && LOG "ERROR: UNKNOWN." && exit 1
+        for QITEM in "${!PIDS[@]}"; do
 
-        LOG_PREFIX="(${QITEM}) "
+            PID="${PIDS["${QITEM}"]}"
 
-        PID="${PIDS["${QITEM}"]}"
+            LOG "(${QITEM}) JOB (${PID}) STOPPING..."
 
-        [[ -z "${PID-}" ]] && LOG "ERROR: UNKNOWN." && exit 1
+            [[ "${FORCE-}" == "true" ]] && RUN_KILL ${PID} || kill ${PID}
 
-        LOG_PREFIX="(${QITEM}) JOB (${PID}) "
+        done
 
-        LOG "STOPPING..."
+        RUN_CHECK
 
-        ps auxwwf
-
-        kill "${PID}" || { LOG "UNABLE TO STOP. CHECKING TO SEE IF IT COMPLETED BEFORE WE TRIED TO STOP"; PIDS_CHECK; continue; }
-
-        LOG "STOPPED"
-
-        PIDS_CLEAN "${QITEM}" "${PID}"
-
-        unset PIDS["${QITEM}"] || exit 1
-
-        LOG "ADDING BACK TO QUEUE"
-
-        QUEUE_UNSHIFT || { LOG "FAILED TO ADD BACK TO QUEUE"; QUEUE_PUSH_FAIL; continue; }
+        [[ -n "${PIDS[@]-}" ]] && sleep 5
 
     done
 
@@ -130,24 +193,10 @@ function PIDS_STOP(){
 
 }
 
-function PIDS_CLEAN(){
 
-    local QITEM="${1}"
-    local PID="${2}"
 
-    STATUS_PATH="${PIPE_TMP_DIR}/${PID}${STATUS_SUFFIX}"
-    LOG_PATH="${PIPE_TMP_DIR}/${PID}${LOG_SUFFIX}"
+function RUN_CHECK(){
 
-    rm "${STATUS_PATH}"
-    rm "${LOG_PATH}"
-
-    return 0
-
-}
-
-function PIDS_CHECK(){
-
-    local JOB_STATUS=
     local FAILED_COUNT=
     local PID_COUNT=
 
@@ -156,57 +205,34 @@ function PIDS_CHECK(){
     #Go through all jobs and see if they completed
     for QITEM in "${!PIDS[@]}"; do
 
-        [[ -z "${QITEM-}" ]] && LOG "ERROR: UNKNOWN." && exit 1
-
+        local JOB_STATUS=""
         PID="${PIDS["${QITEM}"]}"
-
-        [[ -z "${PID-}" ]] && LOG "ERROR: UNKNOWN." && exit 1
-
         STATUS_PATH="${PIPE_TMP_DIR}/${PID}${STATUS_SUFFIX}"
         LOG_PATH="${PIPE_TMP_DIR}/${PID}${LOG_SUFFIX}"
 
-        #If the job hasn't outputted a status, it probably hasn't completed
-        if [[ ! -e ${STATUS_PATH} ]]; then
-
-            #If job is still actually running (and we can confirm it by a PID, skip this loop
-            ps -p ${PID} > /dev/null && continue
-
-            #otherwise, the job has failed or been terminated somehow, so we requeue it
-            QUEUE_UNSHIFT
-
-            PIDS_CLEAN "${QITEM}" "${PID}"
-
-            unset 'PIDS[${QITEM}]' || exit 1
-
-            continue
-
-        fi
+        ## IF the pid is still running, skip processing a running job
+        ps -p ${PID} > /dev/null && continue
 
         LOG_PREFIX="(${QITEM}) JOB (${PID}) "
 
         LOG "PROCESSING RESULTS..."
 
-        local JOB_STATUS=""
-
-        read JOB_STATUS < "${STATUS_PATH}" || QUIT 1
+        ##If the pid isn't running and the status path hasn't been written to, set job status to greater than 128 to requeue
+        [[ -e ${STATUS_PATH} ]] && read JOB_STATUS < "${STATUS_PATH}" || JOB_STATUS=129
 
         LOG "STATUS (${JOB_STATUS})"
 
         if [[ "${PIPE_OUTPUT_CMD_LOG}" != "true" ]] && [[ "${JOB_STATUS}" != "0" ]] || [[ "${DEBUG}" == "true" ]]; then
 
-            #LOG "LOG OUTPUT: $(cat "${LOG_PATH}")"
-
             while read LINE; do
                 LOG "LOG OUTPUT: ${LINE}"
-            done <<< "$(<"${LOG_PATH}")"
-
-            #LOG "LOG STOP"
+            done < "${LOG_PATH}"
 
         fi
 
         if [[ "${JOB_STATUS}" != "0" ]]; then
 
-            if [[ "${JOB_STATUS}" == "100" ]]; then
+            if (( "${JOB_STATUS}" > 128 )); then
 
                 LOG "JOB CAUGHT EXIT SIGNAL. ADDING BACK TO QUEUE."
 
@@ -229,6 +255,7 @@ function PIDS_CHECK(){
                     LOG "ADDING BACK TO QUEUE"
 
                     QUEUE_PUSH
+
                 else
 
                     LOG "EXCEEDED MAX FAILURES (${PIPE_MAX_FAILED_PER_QITEM}). NOT RETURNING TO QUEUE."
@@ -247,7 +274,8 @@ function PIDS_CHECK(){
 
         fi
 
-        PIDS_CLEAN "${QITEM}" "${PID}"
+        [[ -e ${STATUS_PATH} ]] && rm "${STATUS_PATH}"
+        [[ -e ${LOG_PATH} ]] && rm "${LOG_PATH}"
 
         ##save the index
         unset 'PIDS[${QITEM}]' || exit 1
@@ -295,6 +323,7 @@ PIPE_MAX_THREADS="${PIPE_MAX_THREADS:-1}"
 CMD="${@}"
 CMD_MD5="$(printf '%s' "${CMD[@]}" | md5sum | awk '{print $1}')"
 QUEUE_FILE="${PIPE_TMP_DIR}/${CMD_MD5}.queue"
+QUEUE_APPEND_FILE="${PIPE_TMP_DIR}/${CMD_MD5}.append"
 QUEUE_FILE_ORIG="${PIPE_TMP_DIR}/${CMD_MD5}.queue"
 QUEUE_FILE_FAILED="${PIPE_TMP_DIR}/${CMD_MD5}.failed"
 LOCK_FILE="${PIPE_TMP_DIR}/${CMD_MD5}.lock"
@@ -309,13 +338,13 @@ unset PIDS && declare -A PIDS
 
 [[ -z "${CMD-}" ]] && SHOW_HELP && exit 1
 
-while IFS=$"${PIPE_QUEUE_IFS}" read -r -t 0.5 QITEM; do
+while IFS=$"${PIPE_QUEUE_IFS}" read -r -t 1 QITEM; do
     [[ -z "${QITEM-}" ]] && continue
     QUEUE_NEW+=("${QITEM}")
 done && unset QITEM
 
 #Append potential ondisk queue with incoming items
-[[ -n "${QUEUE_NEW[@]-}" ]] && { QITEM=("${QUEUE_NEW[@]}") && QUEUE_PUSH_MANY && unset QITEM || exit 1; }
+[[ -n "${QUEUE_NEW[@]-}" ]] && { QITEM=("${QUEUE_NEW[@]}") && QUEUE_APPEND_MANY && unset QITEM || exit 1; }
 
 #If already locked, exit
 LOCK_IS && echo "${CMD_MD5}" && exit 0
@@ -348,32 +377,47 @@ while QUEUE_SHIFT; do
     LOG "PROCESSING"
 
     #execute the given command
-    RUN "${QITEM}" &
-
-    #save pid of background job
-    PID=$!
-
-    #fail if for some reason the pid couldn't be realized
-    [[ -z "${PID-}" ]] && LOG "ERROR: COULD NOT DETERMINE PID" && exit 1
-
-    #add pid to associative array with QITEM as key
-	PIDS["${QITEM}"]="${PID}"
+    RUN "${QITEM}"
 
     #clear log prefix (will be carried in to subshell so no need to keep it)
 	LOG_PREFIX=""
 
+    COUNT=0
+    COUNT_INCREMENT=10
+
     #run through a waiting pattern if there are no more jobs or we are at our max threads
-    while JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')" && (( "${JOB_COUNT}" >= "${PIPE_MAX_THREADS}" )) || ( QUEUE_READ && [[  -z "${QUEUE[@]-}" ]] && [[ -n "${PIDS[@]-}" ]] ); do
+    while JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')" && (( "${JOB_COUNT}" >= "${PIPE_MAX_THREADS}" )) || { [[  -z "${QUEUE[@]-}" ]] && [[ -n "${PIDS[@]-}" ]]; }; do
 
-        [[ -n "${PIDS[@]-}" ]] && PID_COUNT="${#PIDS[@]}"
+        INCREMENT=$((COUNT % COUNT_INCREMENT))
 
-        LOG "JOB RUNNING (${JOB_COUNT}), JOBS TRACKING (${PID_COUNT-0}), QUEUE COUNT (${#QUEUE[@]})"
+        if (( $INCREMENT == 0 )); then
 
-        WAITFORANY "${PIDS[@]}"
+            COUNT=1
 
-        PIDS_CHECK
+            QUEUE_READ
+
+            [[ -n "${PIDS[@]-}" ]] && PID_COUNT="${#PIDS[@]}"
+
+            LOG "JOB RUNNING (${JOB_COUNT}), JOBS TRACKING (${PID_COUNT-0}), QUEUE COUNT (${#QUEUE[@]})"
+
+
+        else
+
+            (( COUNT++ ))
+
+            for PID in "${PIDS[@]-}"; do
+
+                ps -p ${PID} > /dev/null || break 2
+
+            done
+
+        fi
+
+        sleep 1
 
     done
+
+    RUN_CHECK
 
 done
 

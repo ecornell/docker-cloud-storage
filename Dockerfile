@@ -1,7 +1,7 @@
 FROM tcf909/ubuntu-slim:latest
 MAINTAINER T.C. Ferguson <tcf909@gmail.com>
 
-ARG RCLONE_URL=http://beta.rclone.org/v1.35-164-g488353c/rclone-v1.35-164-g488353c%CE%B2-linux-amd64.zip
+ARG RCLONE_URL=http://downloads.rclone.org/rclone-v1.36-linux-amd64.zip
 ARG RCLONE_BUILD_DIR=/usr/local/src
 
 ARG MERGERFS_URL=https://github.com/trapexit/mergerfs/releases/download/2.19.0/mergerfs_2.19.0.ubuntu-xenial_amd64.deb
