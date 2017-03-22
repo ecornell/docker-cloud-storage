@@ -40,9 +40,7 @@ function CHECK_SPACE(){
 
 }
 
-LOCK_IS && exit 0
-
-LOCK_SET
+LOCK_SET || exit 0
 
 STAGE_1_PERCENT=50
 STAGE_1_JOBS=1

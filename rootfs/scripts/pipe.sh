@@ -340,11 +340,8 @@ done && unset QITEM
 #Append potential ondisk queue with incoming items
 [[ -n "${QUEUE_NEW[@]-}" ]] && { QITEM=("${QUEUE_NEW[@]}") && QUEUE_APPEND_MANY && unset QITEM || exit 1; }
 
-#If already locked, exit
-LOCK_IS && echo "${CMD_MD5}" && exit 0
-
-#LOCK SO WE CAN RUN
-LOCK_SET || exit 1
+#LOCK OR echo back the cmd_md5
+LOCK_SET || { echo "${CMD_MD5}" && exit 0; }
 
 unset QUEUE_NEW
 
