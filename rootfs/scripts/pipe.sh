@@ -21,12 +21,6 @@ INCLUDE_PATH="/scripts/inc"
 # QUEUE, QITEM
 . "${INCLUDE_PATH}/QUEUE.inc.sh"
 
-#PROVIDES:
-# WAITFORANY
-#USES:
-# PIDS
-. "${INCLUDE_PATH}/WAIT.inc.sh"
-
 
 function SHOW_HELP(){
 

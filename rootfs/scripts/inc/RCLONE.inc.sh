@@ -37,13 +37,36 @@ function RCLONE_TRANSFER_FILE(){
 
     local FILENAME="$(basename "${SOURCE}")"
 
-    [[ "${TYPE}" == "copy" ]] && local RCLONE_CMD="copy" && echo -n "Attempting to COPY file (${SOURCE}..."
+    exec 200<"${SOURCE}"
 
-    [[ "${TYPE}" == "move" ]] && local RCLONE_CMD="move" && echo -n "Attempting to MOVE file (${SOURCE})..."
+    if [[ "${TYPE}" == "copy" ]]; then
+
+        local RCLONE_CMD="copy"
+
+        echo -n "Attempting to COPY file (${SOURCE}..."
+
+        flock -sn 200 || {  echo "Unable to obtain READ lock. Exiting.";  exec 200<&-; return 1; }
+
+    elif [[ "${TYPE}" == "move" ]]; then
+
+        local RCLONE_CMD="move"
+        echo -n "Attempting to MOVE file (${SOURCE})..."
+
+        flock -x -w 600 200 || { echo "Unable to obtain WRITE lock. Exiting.";  exec 200<&-; return 1; }
+
+    else
+
+        QUIT 1
+
+    fi
 
     rclone --config /etc/rclone/rclone.conf "${RCLONE_CMD}" "${SOURCE_DIR}" "${DEST_DIR}" --include "/$(printf "%q" "${FILENAME}")" --stats 60s -v
 
     local EXIT_STATUS=$?
+
+    flock -u 200
+
+    exec 200<&-;
 
     [[ "${EXIT_STATUS}" == "0" ]] && echo "SUCCESS" || echo "FAILURE"
 
