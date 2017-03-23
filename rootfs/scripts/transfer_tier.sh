@@ -73,7 +73,7 @@ while ! CHECK_SPACE; do
 
         while ! CHECK_SPACE && JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')" && (( "${JOB_COUNT}" >= "${MAX_JOBS}" )); do
 
-            LOG "JOB COUNT (${JOB_COUNT}), MAX JOBS (${MAX_JOBS})"
+            LOG "JOB COUNT (${JOB_COUNT}), MAX JOBS (${MAX_JOBS}), FREE SPACE (${FREE_PERCENT}%)"
 
             sleep 30
 
