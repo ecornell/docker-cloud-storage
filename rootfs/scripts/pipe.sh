@@ -381,7 +381,7 @@ while QUEUE_SHIFT; do
 	LOG_PREFIX_DEFAULT
 
     COUNT=0
-    COUNT_INCREMENT=10
+    COUNT_INCREMENT=60
 
     #run through a waiting pattern if there are no more jobs or we are at our max threads
     while JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')" && (( "${JOB_COUNT}" >= "${PIPE_MAX_THREADS}" )) || { [[  -z "${QUEUE[@]-}" ]] && [[ -n "${PIDS[@]-}" ]]; }; do
@@ -407,13 +407,11 @@ while QUEUE_SHIFT; do
 
             for PID in "${PIDS[@]-}"; do
 
-                ps -p ${PID} > /dev/null || break
+                ps -p ${PID} > /dev/null || { RUN_CHECK && break; }
 
             done
 
         fi
-
-        RUN_CHECK
 
     done
 
