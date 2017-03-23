@@ -1,3 +1,5 @@
+~DOCS ARE A WORK IN PROGRESS~
+
 This image was primarily built for use with a cloud based media center. Its primary purpose is to provide a media service (Plex, or otherwise) with a native filesystem to serve content from while that content is actually being permantely stored in a cloud storage service (such as Amazon Cloud Drive, etc.).
 
 There is a particular workflow which has been evolved over the life of this container that has worked well for my media needs.
