@@ -31,7 +31,7 @@ function SHOW_HELP(){
 
 function LOG(){
 
-    echo "PIPE: ${LOG_PREFIX-}${@}"
+    echo "PIPE (${CMD}): ${LOG_PREFIX-}${@}"
 
 }
 
