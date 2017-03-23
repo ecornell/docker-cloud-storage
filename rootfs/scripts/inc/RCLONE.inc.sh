@@ -60,7 +60,7 @@ function RCLONE_TRANSFER_FILE(){
 
     fi
 
-    rclone --config /etc/rclone/rclone.conf "${RCLONE_CMD}" "${SOURCE_DIR}" "${DEST_DIR}" --include "/$(printf "%q" "${FILENAME}")" --stats 60s -v
+    rclone --config /etc/rclone/rclone.conf "${RCLONE_CMD}" "${SOURCE_DIR}" "${DEST_DIR}" --include "/$(printf "%q" "${FILENAME}")" --size-only --stats 60s -v
 
     local EXIT_STATUS=$?
 
