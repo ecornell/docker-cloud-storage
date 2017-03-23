@@ -370,6 +370,10 @@ while QUEUE_SHIFT; do
     #recognize QUEUE_SHIFT gives us QITEM
     QITEM="${QITEM}"
 
+    [[ -z "${QITEM-}" ]] && continue
+
+    [[ -n "${PIDS["${QITEM}"]:-}" ]] && LOG "Trying to run duplicate QITEM (${QITEM}) that is already running. Skipping." && continue
+
     LOG_PREFIX="(${QITEM}) "
 
     LOG "PROCESSING"
