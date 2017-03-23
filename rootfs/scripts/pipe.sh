@@ -31,7 +31,7 @@ function SHOW_HELP(){
 
 function LOG(){
 
-    echo "${LOG_PREFIX-}${@}"
+    echo "PIPE: ${LOG_PREFIX-}${@}"
 
 }
 
@@ -56,7 +56,7 @@ function RUN(){
 
         touch "${LOG_PATH}"
 
-        eval "trap 'exit 129' INT TERM; ${CMD_ACTUAL}" | tee "${LOG_PATH}" | while read LINE; do
+        eval "trap 'exit 129' INT TERM; ${CMD_ACTUAL}" 2>&1 | tee "${LOG_PATH}" | while read LINE; do
             [[ "${PIPE_OUTPUT_CMD_LOG-}" == "true" ]] && LOG "CMD OUTPUT: ${LINE}"
         done
 
@@ -66,7 +66,7 @@ function RUN(){
 
         LOG "COMPLETE. STATUS (${STATUS})."
 
-    ) &> /dev/null &
+    ) &
 
      #save pid of background job
     PID=$!
