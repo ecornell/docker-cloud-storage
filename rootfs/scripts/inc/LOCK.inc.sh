@@ -2,11 +2,13 @@
 
 function LOCK_SET(){
 
-    exec 100>>"${LOCK_FILE}"
+    [[ -z "${LOCK_FILE}" ]] && return 1
+
+    exec 100>"${LOCK_FILE}"
 
     flock -xn 100 || return 1
 
-    echo $$ 1>&100 || return 1
+    #echo $$ 1>&100 || return 1
 
     echo "LOCK SET AT (${LOCK_FILE}) FOR ($$)"
 
@@ -16,7 +18,7 @@ function LOCK_SET(){
 
 function LOCK_UNSET(){
 
-    { >&100; } 2> /dev/null && return 0
+    { >&100; } 2> /dev/null || return 0
 
     rm "${LOCK_FILE}"
 

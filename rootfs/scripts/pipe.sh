@@ -66,7 +66,7 @@ function RUN(){
 
         LOG "COMPLETE. STATUS (${STATUS})."
 
-    ) &
+    ) &> /dev/null &
 
      #save pid of background job
     PID=$!
@@ -268,6 +268,7 @@ function RUN_CHECK(){
 
         fi
 
+        LOG "CLEANING TEMP FILES..."
         [[ -e ${STATUS_PATH} ]] && rm "${STATUS_PATH}"
         [[ -e ${LOG_PATH} ]] && rm "${LOG_PATH}"
 
@@ -379,6 +380,8 @@ while QUEUE_SHIFT; do
     #run through a waiting pattern if there are no more jobs or we are at our max threads
     while JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')" && (( "${JOB_COUNT}" >= "${PIPE_MAX_THREADS}" )) || { [[  -z "${QUEUE[@]-}" ]] && [[ -n "${PIDS[@]-}" ]]; }; do
 
+        sleep 1
+
         INCREMENT=$((COUNT % COUNT_INCREMENT))
 
         if (( $INCREMENT == 0 )); then
@@ -398,17 +401,15 @@ while QUEUE_SHIFT; do
 
             for PID in "${PIDS[@]-}"; do
 
-                ps -p ${PID} > /dev/null || break 2
+                ps -p ${PID} > /dev/null || break
 
             done
 
         fi
 
-        sleep 1
+        RUN_CHECK
 
     done
-
-    RUN_CHECK
 
 done
 
