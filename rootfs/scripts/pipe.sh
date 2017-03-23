@@ -31,7 +31,13 @@ function SHOW_HELP(){
 
 function LOG(){
 
-    echo "PIPE (${CMD}): ${LOG_PREFIX-}${@}"
+    echo "PIPE ${LOG_PREFIX-}${@}"
+
+}
+
+function LOG_PREFIX_DEFAULT(){
+
+    LOG_PREFIX="CMD (${CMD}) "
 
 }
 
@@ -157,7 +163,7 @@ function RUN_STOP_ALL(){
 
     local FORCE="${1:-false}"
 
-    LOG_PREFIX=""
+    LOG_PREFIX_DEFAULT
 
     LOG "STOPPING JOBS"
 
@@ -181,7 +187,7 @@ function RUN_STOP_ALL(){
 
     done
 
-    LOG_PREFIX=""
+    LOG_PREFIX_DEFAULT
 
     LOG "STOPPING JOBS DONE"
 
@@ -277,7 +283,7 @@ function RUN_CHECK(){
 
         LOG "REMOVED FROM ACTIVE JOBS LIST"
 
-        LOG_PREFIX=""
+        LOG_PREFIX_DEFAULT
 
     done
 
@@ -349,7 +355,7 @@ unset QUEUE_NEW
 while QUEUE_SHIFT; do
 
     #Clear log prefix
-    LOG_PREFIX=""
+    LOG_PREFIX_DEFAULT
 
     LOG "QUEUED ITEMS WAITING FOR PROCESSING ($((${#QUEUE[@]} + 1)))..."
 
@@ -372,7 +378,7 @@ while QUEUE_SHIFT; do
     RUN "${QITEM}"
 
     #clear log prefix (will be carried in to subshell so no need to keep it)
-	LOG_PREFIX=""
+	LOG_PREFIX_DEFAULT
 
     COUNT=0
     COUNT_INCREMENT=10
