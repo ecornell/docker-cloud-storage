@@ -339,7 +339,7 @@ unset PIDS && declare -A PIDS
 
 [[ -z "${CMD-}" ]] && SHOW_HELP && exit 1
 
-while IFS=$"${PIPE_QUEUE_IFS}" read -r -t 1 QITEM; do
+[[ -p /dev/fd/0 ]] && while IFS=$"${PIPE_QUEUE_IFS}" read -r -t 1 QITEM; do
     [[ -z "${QITEM-}" ]] && continue
     QUEUE_NEW+=("${QITEM}")
 done && unset QITEM
@@ -390,6 +390,8 @@ while QUEUE_SHIFT; do
     #run through a waiting pattern if there are no more jobs or we are at our max threads
     while JOB_COUNT="$(jobs -rp | wc -l | tr -d '[:space:]')" && (( "${JOB_COUNT}" >= "${PIPE_MAX_THREADS}" )) || { [[  -z "${QUEUE[@]-}" ]] && [[ -n "${PIDS[@]-}" ]]; }; do
 
+        set +x
+
         sleep 1
 
         INCREMENT=$((COUNT % COUNT_INCREMENT))
@@ -418,6 +420,8 @@ while QUEUE_SHIFT; do
         fi
 
     done
+
+    [[ "${DEBUG}" == "true" ]] && set -x
 
 done
 
