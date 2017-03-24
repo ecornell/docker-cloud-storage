@@ -139,6 +139,8 @@ function QUIT(){
 
     [[ "${DEBUG}" == "true" ]] && set -x
 
+    trap "QUIT_FORCE" INT
+
     RUN_STOP_ALL
 
     LOCK_UNSET
