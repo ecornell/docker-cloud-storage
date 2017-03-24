@@ -52,7 +52,7 @@ function RCLONE_TRANSFER_FILE(){
         local RCLONE_CMD="move"
         echo "Attempting to MOVE file (${SOURCE})..."
 
-        flock -x -w 600 200 || { echo "Unable to obtain WRITE lock. Exiting.";  exec 200<&-; return 1; }
+        flock -xn 200 || { echo "Unable to obtain WRITE lock. Exiting.";  exec 200<&-; return 1; }
 
     else
 

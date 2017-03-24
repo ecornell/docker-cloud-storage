@@ -90,6 +90,8 @@ while ! CHECK_SPACE; do
 
     done
 
+    sleep 5
+
 done
 
 LOG "Free % (${FREE_PERCENT})."
