@@ -41,3 +41,4 @@ Used to executed a commmand based on filesystem changes (based on inotifywait).
 
 PIPE.sh:
 A parallel processing pipeline with a persistent queue used to do concurrent operations and keep track of outputs/failures/etc.
+
