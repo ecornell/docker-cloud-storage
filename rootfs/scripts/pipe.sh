@@ -361,14 +361,6 @@ while QUEUE_SHIFT; do
 
     LOG "QUEUED ITEMS WAITING FOR PROCESSING ($((${#QUEUE[@]} + 1)))..."
 
-    if (( ${FAILED} > 0 )); then
-
-        (( "${FAILED}" >= "${PIPE_MAX_FAILED}" )) && { LOG "EXCEEDED MAX TOTAL FAILED (${PIPE_MAX_FAILED}). EXITING."; QUIT 1; }
-
-        echo "FAILED COUNT (${FAILED}), THROTTLING FOR $(( 2 ** ${FAILED} )) SECONDS" && sleep "$(( 2 ** ${FAILED} ))"
-
-    fi
-
     #recognize QUEUE_SHIFT gives us QITEM
     QITEM="${QITEM}"
 
@@ -424,6 +416,14 @@ while QUEUE_SHIFT; do
     done
 
     [[ "${DEBUG}" == "true" ]] && set -x
+
+    if (( ${FAILED} > 0 )); then
+
+        (( "${FAILED}" >= "${PIPE_MAX_FAILED}" )) && { LOG "EXCEEDED MAX TOTAL FAILED (${PIPE_MAX_FAILED}). EXITING."; QUIT 1; }
+
+        echo "FAILED COUNT (${FAILED}), THROTTLING FOR $(( 2 ** ${FAILED} )) SECONDS" && sleep "$(( 2 ** ${FAILED} ))"
+
+    fi
 
 done
 
