@@ -13,6 +13,10 @@ SOURCE="${2-}"
 [[ ! -f ${SOURCE-} ]] && exit 0
 [[ ! -e ${DEST-} ]] && logger "Destination does not exist (${DEST}). Exiting." && exit 1
 
+FILES="$(find "${SOURCE}" -type f -regex '.*\.\(mkv\|mp4\|avi\|wmv\|flv\|webm\|mov\)')"
+
+[[ -z "${FILES-}" ]] && exit 0
+
 # Configuration
 FILEBOT_ACTION="move"
 FIlEBOT_UNSORTED="y"

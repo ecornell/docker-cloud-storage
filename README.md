@@ -42,3 +42,141 @@ Used to executed a commmand based on filesystem changes (based on inotifywait).
 PIPE.sh:
 A parallel processing pipeline with a persistent queue used to do concurrent operations and keep track of outputs/failures/etc.
 
+Example Kubernetes Deployment (Plex + Cloud-Storage):
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: plex
+  labels:
+    name: plex
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        name: plex
+      annotations:
+        #Change to redeploy the containers
+        version: "1" 
+        #scheduler.alpha used to run the pod on a master node (single node cluster)
+        scheduler.alpha.kubernetes.io/tolerations: |
+          [{"key": "dedicated", "value": "master", "effect": "NoSchedule" }]
+    spec:
+      containers:
+        - name: plex
+          image: tcf909/plex
+          env:
+            - name: DEBUG
+              value: "false"
+              #Run Plex as ROOT (not ideal, but eliminates permissions incompatibilities across containers
+            - name: PLEX_UID
+              value: "0"
+            - name: PLEX_GID
+              value: "0"
+             #Custom script that sets the advertise ip of the plex server every 60seconds based on a dns name
+            - name: PLEX_ADVERTISE_DNS
+              value: https://plex.cornercafe.net:32400
+              #used to automatically register a plex server with plex account, this eliminates the need for token creations
+            - name: PLEX_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: plex
+                  key: PLEX_USERNAME
+            - name: PLEX_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: plex
+                  key: PLEX_PASSWORD
+            - name: TZ
+              value: America/Los_Angeles
+          ports:
+            - name: plex
+              containerPort: 32400
+            - name: roku-companion
+              containerPort: 8324
+          volumeMounts:
+            - name: plex
+              mountPath: /config
+              subPath: plex/config
+              #Use the cloud-storage mount, but mount as a slave so mounts in /data don't propogate to other containers/host
+            - name: plex
+              mountPath: /data:slave
+              subPath: plex/data
+              #Memory backed mount for fastest transcode
+            - name: plex-transcode
+              mountPath: /transcode
+        - name: cloud-storage
+          image: tcf909/cloud-storage
+          #Required for fuse
+          securityContext:
+            #privileged only required for kubernetes to pass /dev/fuse device
+            privileged: true 
+            #In a normal docker instance, SYS_ADMIN capabilities is all we need for fuse
+            capabilities:
+              add:
+                - SYS_ADMIN #This doesn't actually work for now because of something to do with using VolumeMounts to pass /dev/fuse -- require privileged
+          env:
+            - name: DEBUG
+              value: "false"
+              #Make the pipe.sh script use persistent storage so queues and failures persist beyond reboots
+            - name: PIPE_TMP_DIR
+              value: "/data/.pipe"
+            #RCLONE_MOUNT
+            - name: RCLONE_MOUNT_0
+              value: "ACD_VAULT:/Media|/data/.Vault"
+            - name: RCLONE_MOUNT_0_OPTIONS
+              value: "--max-read-ahead 200M --buffer-size 32M --allow-other"
+            #UNION_MOUNT
+            - name: UNION_MOUNT_0
+              value: "/data/.Local:/data/.Vault|/data/Media"
+            #RSYNC_SERVER
+            - name: RSYNC_SERVER_USER
+              value: "root"
+            - name: RSYNC_SERVER_GROUP
+              value: "root"
+            - name: RSYNC_SERVER_VOLUME_0
+              value: "Incoming|/data/Media/Incoming"
+            #FILEBOT
+            - name: WATCHER_PATH_0
+              value: '/data/.Local/Incoming|||[[ -f ${FILE} ]] && echo ${FILE} | /scripts/pipe.sh -t 4 "/scripts/filebot-amc.sh /data/.Local {}"'
+            - name: WATCHER_PATH_0_OPTIONS
+              value: '-r -e close_write -e moved_to --exclude /data/.Local/Incoming/\..+'
+            #TRANSFERS
+            - name: WATCHER_PATH_1
+              value: '/data/.Local|||[[ -f ${FILE} ]] && echo ${FILE} | /scripts/pipe.sh -t 20 "/scripts/transfer_copy.sh /data/.Local ACD_VAULT:/Media {}" && /scripts/transfer_tier.sh /data/.Local ACD_VAULT:/Media'
+            - name: WATCHER_PATH_1_OPTIONS
+              value: '-r -e close_write -e moved_to --exclude /data/.Local/Incoming'
+          ports:
+            - name: rsync-server
+              containerPort: 837
+          volumeMounts:
+            #FOR RCLONE_MOUNT and #UNION_MOUNT
+            - name: fuse
+              mountPath: /dev/fuse
+            #FOR RCLONE_MOUNT
+            - name: etc-rclone
+              mountPath: /etc/rclone
+            #Make sure to mount /data as a shared device so that all fuse devices we mount IN /data are seen in other containers
+            - name: plex
+              mountPath: /data:shared
+              subPath: plex/data
+      volumes:
+        - name: fuse
+          hostPath:
+            path: /dev/fuse
+        - name: etc-rclone
+          secret:
+            secretName: plex
+            items:
+            - key: "rclone-rclone.conf"
+              path: "rclone.conf"
+        - name: plex
+          persistentVolumeClaim:
+            claimName: plex
+        - name: plex-transcode
+          emptyDir:
+            medium: Memory
+```
