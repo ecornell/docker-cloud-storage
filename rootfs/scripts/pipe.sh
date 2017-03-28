@@ -421,7 +421,9 @@ while QUEUE_SHIFT; do
 
         (( "${FAILED}" >= "${PIPE_MAX_FAILED}" )) && { LOG "EXCEEDED MAX TOTAL FAILED (${PIPE_MAX_FAILED}). EXITING."; QUIT 1; }
 
-        echo "FAILED COUNT (${FAILED}), THROTTLING FOR $(( 2 ** ${FAILED} )) SECONDS" && sleep "$(( 2 ** ${FAILED} ))"
+        echo "FAILED COUNT (${FAILED}), THROTTLING FOR $(( 2 ** ${FAILED} )) SECONDS" && sleep "$(( 2 ** ${FAILED} ))" &
+
+        wait $!
 
     fi
 
